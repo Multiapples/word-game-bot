@@ -14,7 +14,7 @@ export class PingCommand implements Command {
             embeds: [
                 new EmbedBuilder()
                     .setColor(0xffff80)
-                    .setDescription(`Received in ${sent - received}`),
+                    .setDescription(`Received in ${received - sent}`),
             ],
         });
         const returned: number = Date.now();
@@ -23,8 +23,8 @@ export class PingCommand implements Command {
                 new EmbedBuilder()
                     .setColor(0xffff80)
                     .setDescription(
-                        `Received in ${sent - received} ms\n` +
-                        `Returned in ${returned - received} ms`
+                        `Received in ${received - sent} ms\n` +
+                        `Reply unblocked after ${returned - received} ms`
                     ),
             ]
         });
