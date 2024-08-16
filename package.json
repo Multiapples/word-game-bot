@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "main": "build/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "node build/index.js",
-    "build": "tsup src/index.ts --minify"
+    "deploy-commands": "tsx src/deployCommands.ts",
+    "dev": "tsx src/index.ts",
+    "build": "tsup src/index.ts --minify",
+    "run": "node build/index.js"
   },
   "author": "Multiapples",
   "license": "MIT",
