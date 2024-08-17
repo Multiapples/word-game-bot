@@ -9,22 +9,25 @@ export class PingCommand implements Command {
 
     async execute(interaction: CommandInteraction): Promise<void> {
         const sent: number = interaction.createdTimestamp;
-        const received: number = Date.now();
-        await interaction.reply({
+        const reply = await interaction.reply({
             embeds: [
                 new EmbedBuilder()
                     .setColor(0xffff80)
-                    .setDescription(`Received in ${received - sent} ms`),
+                    .setDescription(
+                        `Websocket heartbeat: ${interaction.client.ws.ping} ms\n` +
+                        `Command roundtrip: ... ms`
+                    ),
             ],
+            fetchReply: true,
         });
-        const returned: number = Date.now();
+        const returned: number = reply.createdTimestamp;
         interaction.editReply({
             embeds: [
                 new EmbedBuilder()
                     .setColor(0xffff80)
                     .setDescription(
-                        `Received in ${received - sent} ms\n` +
-                        `Reply unblocked after ${returned - received} ms`
+                        `Websocket heartbeat: ${interaction.client.ws.ping} ms\n` +
+                        `Command roundtrip: ${returned - sent} ms`
                     ),
             ]
         });
