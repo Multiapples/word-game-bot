@@ -14,7 +14,7 @@ export class PingCommand implements Command {
             embeds: [
                 new EmbedBuilder()
                     .setColor(0xffff80)
-                    .setDescription(`Received in ${received - sent}`),
+                    .setDescription(`Received in ${received - sent} ms`),
             ],
         });
         const returned: number = Date.now();
