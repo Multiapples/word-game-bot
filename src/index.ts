@@ -3,6 +3,7 @@ import { Client, Collection, Events, GatewayIntentBits, InteractionReplyOptions 
 import * as dotenv from "dotenv";
 import { Command } from "./commands/commandInterface";
 import { PingCommand } from "./commands/ping";
+import { autoReply } from "./util/commandInteraction";
 
 // Load environment variables.
 dotenv.config();
@@ -40,11 +41,7 @@ client.on(Events.InteractionCreate, async interaction => {
             content: `Uh oh, an error occurred!`,
             ephemeral: true,
         };
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp(msg);
-        } else {
-            await interaction.followUp(msg);
-        }
+        await autoReply(interaction, msg);
     }
 });
 
