@@ -4,6 +4,7 @@ import * as dotenv from "dotenv";
 import { Command } from "./commands/commandInterface";
 import { PingCommand } from "./commands/ping";
 import { autoReply } from "./util/commandInteraction";
+import { PlayCommand } from "./commands/play";
 
 // Load environment variables.
 dotenv.config();
@@ -12,13 +13,18 @@ assert(botToken !== undefined, "Bot token missing from .env");
 
 // Create client instance.
 const client: Client = new Client({
-    intents: [GatewayIntentBits.Guilds],
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+    ],
 });
 
 // Init commands
 const commands: Collection<string, Command> = new Collection();
 [
     new PingCommand(),
+    new PlayCommand(),
 ].forEach(cmd => commands.set(cmd.slashCommand.name, cmd));
 
 // Register events.

@@ -1,7 +1,8 @@
-import { REST, RESTPostAPIChatInputApplicationCommandsJSONBody, Routes } from "discord.js";
-import { PingCommand } from "./commands/ping";
 import { assert } from "./util/assert";
+import { REST, RESTPostAPIChatInputApplicationCommandsJSONBody, Routes } from "discord.js";
 import * as dotenv from "dotenv";
+import { PingCommand } from "./commands/ping";
+import { PlayCommand } from "./commands/play";
 
 dotenv.config();
 
@@ -14,6 +15,7 @@ const devGuildIds: string[] = process.env.DEV_GUILD_IDS.split(" ");
 
 const commands: RESTPostAPIChatInputApplicationCommandsJSONBody[] = [
     new PingCommand(),
+    new PlayCommand(),
 ].map(cmd => cmd.slashCommand.toJSON());
 
 const rest: REST = new REST().setToken(botToken);
