@@ -1,7 +1,45 @@
 import { Collection, CommandInteraction, Guild, GuildTextBasedChannel, Message, MessageCollector, ReadonlyCollection, User } from "discord.js";
 import { autoReply } from "../util/commandInteraction";
 
-class Game {
+/**
+ * An enum representing possible game tiles.
+ * Values are enumerated sequentially starting from 0.
+ */
+export enum Tile {
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+    H,
+    I,
+    J,
+    K,
+    L,
+    M,
+    N,
+    O,
+    P,
+    Q,
+    R,
+    S,
+    T,
+    U,
+    V,
+    W,
+    X,
+    Y,
+    Z,
+    WILD,
+    WILD_VOWEL,
+    WILD_CONSONANT,
+}
+
+export type CAPITAL_LETTER = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z"
+
+export class Game {
     private gameManager: GameManager;
     private guild: Guild;
     private players: User[];
@@ -9,6 +47,9 @@ class Game {
     private channel: GuildTextBasedChannel;
     private collector: MessageCollector;
     private destroyCallback: (game: Game) => void;
+
+    private tiles: Tile[];
+    private tileCount: Collection<Tile, number>;
 
     /**
      * @param gameManager The game manager responsible for this game.
@@ -26,24 +67,41 @@ class Game {
         this.channel = channel;
         this.collector = channel.createMessageCollector({
             filter: msg => this.players.includes(msg.author),
-            time: 5 * 1000,
+            time: 1 * 60 * 1000,
         });
         this.destroyCallback = destroyCallback;
+
+        this.tiles = this.generateTiles();
+        this.tileCount = this.generateTileCount(this.tiles);
     }
 
     /** Runs this game asyncronously. */
     async run(): Promise<void> {
-        autoReply(this.interaction, {
+        await autoReply(this.interaction, {
             content: "Game started",
         });
 
+        await this.interaction.followUp({
+            content: `Tiles: \`\`${this.tiles.map(tile => "ABCDEFGHIJKLMNOPQRSTUVWXYZ*vc?????"[tile]).join("")}\`\``,
+        })
+
         this.collector.on('collect', async msg => {
-            await msg.reply(`This is going to get rate limited so hard. Your message was: ${msg.content}`);
+            if (this.testWordTiles(msg.content.trim(), this.tileCount)) {
+                msg.react(["🔅", "🔆", "⭐", "💫", "☄️"][Math.floor(Math.random() * 5)])
+                    .catch(err => {
+                        console.error(err)
+                    });
+            } else {
+                msg.react("❌")
+                    .catch(err => {
+                        console.error(err)
+                    });
+            }
         });
 
         const collected: ReadonlyCollection<String, Message<boolean>> = await new Promise(resolve => this.collector.on('end', collected => resolve(collected)));
 
-        await autoReply(this.interaction, {
+        await this.interaction.followUp({
             content: `All done. Collected ${collected.size} item(s).`,
         })
 
@@ -61,6 +119,92 @@ class Game {
         if (!this.collector.ended) {
             this.collector.stop();
         }
+    }
+
+    /** Generates an array of random tiles. */
+    private generateTiles(): Tile[] {
+        const tiles: Tile[] = [];
+        for (let i = 0; i < 6; i++) {
+            tiles.push(Math.floor(Math.random() * 29));
+        }
+        return tiles;
+    }
+
+    /**
+     * Returns a collection with the number of times each tile appears in the received
+     * array. Tiles that never appear are assigned a value of 0 in the collection.
+     */
+    private generateTileCount(tiles: Tile[]): Collection<Tile, number> {
+        const count = new Collection<Tile, number>();
+        for (const tile in Tile) {
+            if (isNaN(Number(tile))) {
+                continue;
+            }
+            count.ensure(Number(tile), () => 0);
+        }
+        for (const tile of tiles) {
+            count.set(tile, count.get(tile)! + 1);
+        }
+        return count;
+    }
+
+    /**
+     * Checks whether a word can be spelt using the given tiles. Returns true or false
+     * accordingly.
+     */
+    private testWordTiles(word: string, tileCount: Collection<Tile, number>): boolean {
+        // Check that word is not empty string.
+        if (word.length === 0) {
+            return false;
+        }
+        // Check that word only contains A-Z
+        word = word.toUpperCase();
+        const capAlphaOnly = /^[A-Z]*$/g;
+        if (!capAlphaOnly.test(word)) {
+            return false;
+        }
+        // Count tiles used in the word.
+        const counts = tileCount.clone();
+        const extraLetters: CAPITAL_LETTER[] = [];
+        for (let char of word as unknown as CAPITAL_LETTER[]) {
+            let count = counts.get(Tile[char])!;
+            if (count > 0) {
+                counts.set(Tile[char], count - 1);
+            } else {
+                extraLetters.push(char);
+            }
+        }
+        // Count wild vowels and consonants. Y is dealt with later.
+        let wilds = counts.get(Tile.WILD)!;
+        let wildVowels = counts.get(Tile.WILD_VOWEL)!;
+        let wildConsonants = counts.get(Tile.WILD_CONSONANT)!;
+        let yCount = 0;
+        for (let char of extraLetters) {
+            if ("AEIOU".includes(char)) {
+                wildVowels--;
+            } else if ("BCDFGHJKLMNPQRSTVWXZ".includes(char)) {
+                wildConsonants--;
+            } else if (char === "Y") {
+                yCount++;
+            }
+        }
+        // Use wilds to cover extra vowels and consonants.
+        if (wildVowels < 0) {
+            wilds += wildVowels;
+            wildVowels = 0;
+        }
+        if (wildConsonants < 0) {
+            wilds += wildConsonants;
+            wildConsonants = 0;
+        }
+        if (wilds < 0) {
+            return false; // Out of wilds
+        }
+        // Check that remaining wild types can cover Y's. Note that all wild types can become a Y.
+        if (yCount > wilds + wildConsonants + wildVowels) {
+            return false;
+        }
+        return true;
     }
 
     getGuild(): Guild {
