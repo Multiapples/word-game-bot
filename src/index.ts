@@ -5,6 +5,7 @@ import { Command } from "./commands/commandInterface";
 import { PingCommand } from "./commands/ping";
 import { autoReply } from "./util/commandInteraction";
 import { PlayCommand } from "./commands/play";
+import { initWordList } from "./game/wordList/wordList";
 
 // Load environment variables.
 dotenv.config();
@@ -20,35 +21,42 @@ const client: Client = new Client({
     ],
 });
 
-// Init commands
-const commands: Collection<string, Command> = new Collection();
-[
-    new PingCommand(),
-    new PlayCommand(),
-].forEach(cmd => commands.set(cmd.slashCommand.name, cmd));
+Promise.all([
+    // Init resources
+    initWordList(),
+]).then(() => {
+    console.log("Done initializing resources.");
 
-// Register events.
-client.once(Events.ClientReady, readyClient => {
-    console.log(`Logged in as ${readyClient.user.tag}`);
-});
+    // Init commands
+    const commands: Collection<string, Command> = new Collection();
+    [
+        new PingCommand(),
+        new PlayCommand(),
+    ].forEach(cmd => commands.set(cmd.slashCommand.name, cmd));
 
-client.on(Events.InteractionCreate, async interaction => {
-    if (!interaction.isChatInputCommand()) {
-        return; // Only consider chat input commands.
-    }
-    assert(commands.has(interaction.commandName), `Received a command for ${interaction.commandName}, which does not exist`);
-    const command = commands.get(interaction.commandName)!;
+    // Register events.
+    client.once(Events.ClientReady, readyClient => {
+        console.log(`Logged in as ${readyClient.user.tag}`);
+    });
 
-    try {
-        await command.execute(interaction);
-    } catch (error) {
-        console.error(error);
-        const msg: InteractionReplyOptions = {
-            content: `Uh oh, an error occurred!`,
-            ephemeral: true,
-        };
-        await autoReply(interaction, msg);
-    }
-});
+    client.on(Events.InteractionCreate, async interaction => {
+        if (!interaction.isChatInputCommand()) {
+            return; // Only consider chat input commands.
+        }
+        assert(commands.has(interaction.commandName), `Received a command for ${interaction.commandName}, which does not exist`);
+        const command = commands.get(interaction.commandName)!;
 
-client.login(botToken);
+        try {
+            await command.execute(interaction);
+        } catch (error) {
+            console.error(error);
+            const msg: InteractionReplyOptions = {
+                content: `Uh oh, an error occurred!`,
+                ephemeral: true,
+            };
+            await autoReply(interaction, msg);
+        }
+    });
+
+    client.login(botToken);
+})

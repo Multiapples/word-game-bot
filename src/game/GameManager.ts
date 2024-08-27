@@ -1,5 +1,7 @@
 import { Collection, CommandInteraction, Guild, GuildTextBasedChannel, Message, MessageCollector, ReadonlyCollection, User } from "discord.js";
 import { autoReply } from "../util/commandInteraction";
+import { wordList } from "./wordList/wordList";
+import { assert } from "../util/assert";
 
 /**
  * An enum representing possible game tiles.
@@ -71,7 +73,7 @@ export class Game {
         });
         this.destroyCallback = destroyCallback;
 
-        this.tiles = this.generateTiles();
+        this.tiles = this.generateTiles(20);
         this.tileCount = this.generateTileCount(this.tiles);
     }
 
@@ -86,17 +88,35 @@ export class Game {
         })
 
         this.collector.on('collect', async msg => {
-            if (this.testWordTiles(msg.content.trim(), this.tileCount)) {
-                msg.react(["🔅", "🔆", "⭐", "💫", "☄️"][Math.floor(Math.random() * 5)])
-                    .catch(err => {
-                        console.error(err)
-                    });
-            } else {
+            const word = msg.content.trim().toUpperCase();
+            const recognizedWord = wordList.has(word.toLowerCase());
+            const wordAsTiles = this.wordToTiles(msg.content.trim(), this.tileCount);
+            const tilesValid = wordAsTiles !== null;
+            if (!recognizedWord) {
                 msg.react("❌")
                     .catch(err => {
                         console.error(err)
                     });
+                return;
             }
+            if (!tilesValid) {
+                msg.react("🔢")
+                    .catch(err => {
+                        console.error(err)
+                    });
+                return;
+            }
+            msg.reply({
+                content: `score: ${this.scoreWord(wordAsTiles)}`,
+            })
+            await msg.react("✅")
+                .catch(err => {
+                    console.error(err)
+                })
+            await msg.react(["🔅", "🔆", "⭐", "💫", "☄️"][Math.floor(Math.random() * 5)])
+                .catch(err => {
+                    console.error(err)
+                });
         });
 
         const collected: ReadonlyCollection<String, Message<boolean>> = await new Promise(resolve => this.collector.on('end', collected => resolve(collected)));
@@ -122,10 +142,12 @@ export class Game {
     }
 
     /** Generates an array of random tiles. */
-    private generateTiles(): Tile[] {
+    private generateTiles(length: number): Tile[] {
+        assert(Number.isInteger(length));
+        assert(length >= 0);
         const tiles: Tile[] = [];
-        for (let i = 0; i < 6; i++) {
-            tiles.push(Math.floor(Math.random() * 29));
+        for (let i = 0; i < length; i++) {
+            tiles.push(Math.floor(Math.random() * (Object.keys(Tile).length / 2)));
         }
         return tiles;
     }
@@ -149,62 +171,152 @@ export class Game {
     }
 
     /**
-     * Checks whether a word can be spelt using the given tiles. Returns true or false
-     * accordingly.
+     * Decrements a value from a tile count collection.
+     * @param collection A collection holding an amount of each tile.
+     * @param tile The tile to decrement. The collection must have a value for this tile.
+     * @returns `true` if value was decremented and `false` otherwise.
      */
-    private testWordTiles(word: string, tileCount: Collection<Tile, number>): boolean {
-        // Check that word is not empty string.
-        if (word.length === 0) {
+    private decrementTileCount(collection: Collection<Tile, number>, tile: Tile): boolean {
+        const count: Tile | undefined = collection.get(tile);
+        assert(count !== undefined, "Tile count collection does not have value for tile.")
+        if (count > 0) {
+            collection.set(tile, count - 1);
+            return true;
+        } else {
             return false;
         }
-        // Check that word only contains A-Z
+    }
+
+    /**
+     * Spells out a word using a set of tiles.
+     * @param word The word to spell.
+     * @param tileCount The number of each tile type available. Each type of tile must
+     *     have a non-negative value in the collection.
+     * @returns An array of tiles. If the word cannot be spelt with the given tiles, null
+     *     is returned instead.
+     */
+    private wordToTiles(word: string, tileCount: Collection<Tile, number>): Tile[] | null {
+        // Check that the word is not an empty string.
+        if (word.length === 0) {
+            return null;
+        }
+        // Check that the word only contains A-Z.
         word = word.toUpperCase();
         const capAlphaOnly = /^[A-Z]*$/g;
         if (!capAlphaOnly.test(word)) {
-            return false;
+            return null;
         }
-        // Count tiles used in the word.
+        // Fill the word with regular tiles.
         const counts = tileCount.clone();
-        const extraLetters: CAPITAL_LETTER[] = [];
-        for (let char of word as unknown as CAPITAL_LETTER[]) {
-            let count = counts.get(Tile[char])!;
-            if (count > 0) {
-                counts.set(Tile[char], count - 1);
+        const wordAsTiles: (Tile | null)[] = [];
+        for (const char of word as unknown as CAPITAL_LETTER[]) {
+            const tile = Tile[char];
+            if (this.decrementTileCount(counts, tile)) {
+                wordAsTiles.push(tile);
             } else {
-                extraLetters.push(char);
+                wordAsTiles.push(null);
             }
         }
-        // Count wild vowels and consonants. Y is dealt with later.
-        let wilds = counts.get(Tile.WILD)!;
-        let wildVowels = counts.get(Tile.WILD_VOWEL)!;
-        let wildConsonants = counts.get(Tile.WILD_CONSONANT)!;
-        let yCount = 0;
-        for (let char of extraLetters) {
+        // Replace missing tiles with wild types, except Y's.
+        for (let index = 0; index < this.tiles.length; index++) {
+            const char = word[index] as CAPITAL_LETTER;
+            if (wordAsTiles[index] !== null || char == "Y") {
+                continue;
+            }
             if ("AEIOU".includes(char)) {
-                wildVowels--;
+                if (this.decrementTileCount(counts, Tile.WILD_VOWEL)) {
+                    wordAsTiles[index] = Tile.WILD_VOWEL;
+                } else if (this.decrementTileCount(counts, Tile.WILD)) {
+                    wordAsTiles[index] = Tile.WILD;
+                } else {
+                    return null; // Cannot spell word.
+                }
             } else if ("BCDFGHJKLMNPQRSTVWXZ".includes(char)) {
-                wildConsonants--;
-            } else if (char === "Y") {
-                yCount++;
+                if (this.decrementTileCount(counts, Tile.WILD_CONSONANT)) {
+                    wordAsTiles[index] = Tile.WILD_CONSONANT;
+                } else if (this.decrementTileCount(counts, Tile.WILD)) {
+                    wordAsTiles[index] = Tile.WILD;
+                } else {
+                    return null; // Cannot spell word.
+                }
             }
         }
-        // Use wilds to cover extra vowels and consonants.
-        if (wildVowels < 0) {
-            wilds += wildVowels;
-            wildVowels = 0;
+        // Replace missing Y tiles with wild types.
+        for (let index = 0; index < this.tiles.length; index++) {
+            const char = word[index] as CAPITAL_LETTER;
+            if (wordAsTiles[index] !== null || char !== "Y") {
+                continue;
+            }
+            if (this.decrementTileCount(counts, Tile.WILD_VOWEL)) {
+                wordAsTiles[index] = Tile.WILD_VOWEL;
+            } else if (this.decrementTileCount(counts, Tile.WILD_CONSONANT)) {
+                wordAsTiles[index] = Tile.WILD_CONSONANT;
+            } else if (this.decrementTileCount(counts, Tile.WILD)) {
+                wordAsTiles[index] = Tile.WILD;
+            } else {
+                return null; // Cannot spell word.
+            }
         }
-        if (wildConsonants < 0) {
-            wilds += wildConsonants;
-            wildConsonants = 0;
+        // Assert no null tiles, then return.
+        for (const tile of wordAsTiles) {
+            assert(tile !== null, "null tile leftover.");
         }
-        if (wilds < 0) {
-            return false; // Out of wilds
+        return wordAsTiles as Tile[];
+    }
+
+    /** Calculates a score for tiles spelling out a word. */
+    private scoreWord(tiles: Tile[]): number {
+        let score = 0;
+        let nonWildTiles = 0;
+        for (const tile of tiles) {
+            switch (tile) {
+                case Tile.E:
+                case Tile.S:
+                case Tile.I:
+                case Tile.A:
+                case Tile.R:
+                case Tile.N:
+                case Tile.T:
+                case Tile.O:
+                case Tile.L:
+                case Tile.C:
+                case Tile.D:
+                case Tile.U:
+                    score += 1;
+                    nonWildTiles++;
+                    break;
+                case Tile.G:
+                case Tile.P:
+                case Tile.M:
+                case Tile.H:
+                case Tile.B:
+                case Tile.Y:
+                case Tile.F:
+                    score += 2;
+                    nonWildTiles++;
+                    break;
+                case Tile.V:
+                case Tile.K:
+                case Tile.W:
+                    score += 3;
+                    nonWildTiles++;
+                    break;
+                case Tile.Z:
+                case Tile.X:
+                case Tile.J:
+                case Tile.Q:
+                    score += 5;
+                    nonWildTiles++;
+                    break;
+                case Tile.WILD:
+                case Tile.WILD_CONSONANT:
+                case Tile.WILD_VOWEL:
+                    break;
+            }
         }
-        // Check that remaining wild types can cover Y's. Note that all wild types can become a Y.
-        if (yCount > wilds + wildConsonants + wildVowels) {
-            return false;
-        }
-        return true;
+        const lengthBonus = Math.max(0, tiles.length - 3) * nonWildTiles;
+        score += lengthBonus;
+        return score;
     }
 
     getGuild(): Guild {
