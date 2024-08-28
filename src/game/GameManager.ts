@@ -39,19 +39,48 @@ export enum Tile {
     WILD_CONSONANT,
 }
 
-export type CAPITAL_LETTER = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z"
+export type CAPITAL_LETTER = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z";
+
+export enum Phase {
+    START,
+    WAVE1,
+    INTERMISSION1,
+    WAVE2,
+    INTERMISSION2,
+    WAVE3,
+    INTERMISSION3,
+    END,
+}
+
+export class Player {
+    user: User;
+    health: number;
+    waveDamage: number;
+    totalDamage: number;
+
+    constructor(user: User) {
+        this.user = user;
+        this.health = 0;
+        this.waveDamage = 0;
+        this.totalDamage = 0;
+    }
+}
 
 export class Game {
+    // Game Manager Related
     private gameManager: GameManager;
     private guild: Guild;
-    private players: User[];
+    private users: User[];
     private interaction: CommandInteraction;
     private channel: GuildTextBasedChannel;
     private collector: MessageCollector;
     private destroyCallback: (game: Game) => void;
 
+    // Gameplay Related
+    private phase: Phase;
     private tiles: Tile[];
     private tileCount: Collection<Tile, number>;
+    private players: Collection<UserId, Player>;
 
     /**
      * @param gameManager The game manager responsible for this game.
@@ -64,68 +93,149 @@ export class Game {
     constructor(gameManager: GameManager, guild: Guild, players: User[], interaction: CommandInteraction, channel: GuildTextBasedChannel, destroyCallback: (game: Game) => void) {
         this.gameManager = gameManager;
         this.guild = guild;
-        this.players = players;
+        this.users = players;
         this.interaction = interaction;
         this.channel = channel;
         this.collector = channel.createMessageCollector({
-            filter: msg => this.players.includes(msg.author),
-            time: 1 * 60 * 1000,
+            filter: msg => this.users.includes(msg.author),
+            time: 15 * 60 * 1000,
         });
         this.destroyCallback = destroyCallback;
 
-        this.tiles = this.generateTiles(20);
-        this.tileCount = this.generateTileCount(this.tiles);
+        this.phase = Phase.START;
+        this.tiles = [];
+        this.tileCount = this.generateTileCount([]);
+        this.players = new Collection();
     }
 
     /** Runs this game asyncronously. */
     async run(): Promise<void> {
+        // Initial interaction response.
         await autoReply(this.interaction, {
-            content: "Game started",
+            content: "Game #727",
         });
 
+        // Setup
+        this.users.forEach(user => this.players.set(user.id, new Player(user)));
+        this.collector.on('collect', msg => this.onCollectPlayerMessage(msg));
+
+        // Start game. Generate and display tiles.
+        this.tiles = this.generateTiles(14);
+        this.tileCount = this.generateTileCount(this.tiles);
         await this.interaction.followUp({
             content: `Tiles: \`\`${this.tiles.map(tile => "ABCDEFGHIJKLMNOPQRSTUVWXYZ*vc?????"[tile]).join("")}\`\``,
         })
 
-        this.collector.on('collect', async msg => {
-            const word = msg.content.trim().toUpperCase();
-            const recognizedWord = wordList.has(word.toLowerCase());
-            const wordAsTiles = this.wordToTiles(msg.content.trim(), this.tileCount);
-            const tilesValid = wordAsTiles !== null;
-            if (!recognizedWord) {
-                msg.react("❌")
-                    .catch(err => {
-                        console.error(err)
-                    });
-                return;
+        // Wave 1. Accepting answers and display timer.
+        const rep = await this.interaction.followUp({
+            content: "Wave 1. Time Left: 30 s",
+            fetchReply: true,
+        });
+        this.phase = Phase.WAVE1;
+        for (let seconds = 29; seconds >= 0; seconds--) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            if (seconds > 10 && seconds % 5 === 0) {
+                await rep.edit({
+                    content: `Wave 1. Time Left: ${seconds} s`,
+                });
+            } else if (seconds === 10) {
+                await rep.edit({
+                    content: "Wave 1.",
+                });
+                await this.interaction.followUp({
+                    content: `${seconds} s left!`,
+                });
             }
-            if (!tilesValid) {
-                msg.react("🔢")
-                    .catch(err => {
-                        console.error(err)
-                    });
-                return;
-            }
-            msg.reply({
-                content: `score: ${this.scoreWord(wordAsTiles)}`,
-            })
-            await msg.react("✅")
-                .catch(err => {
-                    console.error(err)
-                })
-            await msg.react(["🔅", "🔆", "⭐", "💫", "☄️"][Math.floor(Math.random() * 5)])
+        }
+
+        // Intermission 1. Display results.
+        this.phase = Phase.INTERMISSION1;
+        const leaderboardRaw: [number, string][] = [];
+        for (const player of this.players.values()) {
+            const line: string = `${player.user.tag}: +${player.waveDamage}`;
+            leaderboardRaw.push([player.totalDamage, line]);
+        }
+        leaderboardRaw.sort((a, b) => a[0] - b[0]);
+        const leaderboard = leaderboardRaw.map(line => line[1]);
+        await this.interaction.followUp(`Wave 1 Results\n${leaderboard.join('\n')}`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        await this.interaction.followUp({
+            content: "💥🐙❗",
+        });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Skip waves 2 and 3 for now.
+
+        // End. Display cumulative results.
+        this.collector.stop();
+        await this.interaction.followUp({
+            content: "You win! (for now)",
+        });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await this.interaction.followUp({
+            content: "Leaderboard",
+        });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await this.interaction.followUp({
+            content: "All done",
+        });
+
+        this.stop();
+    }
+
+    private async onCollectPlayerMessage(msg: Message): Promise<void> {
+        const acceptingWords = this.phase === Phase.WAVE1 ||
+            this.phase === Phase.WAVE2 ||
+            this.phase === Phase.WAVE3;
+        if (!acceptingWords) {
+            return;
+        }
+
+        const word = msg.content.trim().toUpperCase();
+        const recognizedWord = wordList.has(word.toLowerCase());
+        const wordAsTiles = this.wordToTiles(msg.content.trim(), this.tileCount);
+        const tilesValid = wordAsTiles !== null;
+        if (!recognizedWord) {
+            msg.react("❌")
                 .catch(err => {
                     console.error(err)
                 });
-        });
-
-        const collected: ReadonlyCollection<String, Message<boolean>> = await new Promise(resolve => this.collector.on('end', collected => resolve(collected)));
-
-        await this.interaction.followUp({
-            content: `All done. Collected ${collected.size} item(s).`,
-        })
-
-        this.stop();
+            return;
+        }
+        if (!tilesValid) {
+            msg.react("🔢")
+                .catch(err => {
+                    console.error(err)
+                });
+            return;
+        }
+        const score = this.scoreWord(wordAsTiles);
+        const player: Player | undefined = this.players.get(msg.author.id);
+        assert(player !== undefined);
+        player.waveDamage += score;
+        player.totalDamage += score;
+        await msg.react("✅")
+            .catch(err => {
+                console.error(err)
+            })
+        let scoreToDisplay = score;
+        const reactions = ["🔅", "⭐", "💫", "☄️", "🪩", "🎇", "🎆"];
+        while (scoreToDisplay > 0) {
+            let emoji = "";
+            for (let index = reactions.length - 1; index >= 0; index--) {
+                const scoreThreshold = Math.pow(2, index);
+                if (scoreToDisplay >= scoreThreshold) {
+                    scoreToDisplay -= scoreThreshold;
+                    emoji = reactions[index];
+                    break;
+                }
+            }
+            await msg.react(emoji)
+                .catch(err => {
+                    console.error(err)
+                });
+        }
     }
 
     /** Stops this game gracefully. */
@@ -324,7 +434,7 @@ export class Game {
     }
 
     getPlayers(): User[] {
-        return this.players;
+        return this.users;
     }
 
     getInteraction(): CommandInteraction {
