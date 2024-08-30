@@ -1,12 +1,9 @@
-import { Collection, CommandInteraction, Guild, GuildTextBasedChannel, Message, MessageCollector, ReadonlyCollection, User } from "discord.js";
+import { APIEmbedField, Collection, CommandInteraction, EmbedBuilder, Guild, GuildTextBasedChannel, Message, MessageCollector, ReadonlyCollection, User } from "discord.js";
 import { autoReply } from "../util/commandInteraction";
 import { wordList } from "./wordList/wordList";
 import { assert } from "../util/assert";
 
-/**
- * An enum representing possible game tiles.
- * Values are enumerated sequentially starting from 0.
- */
+/** Possible game tiles. */
 export enum Tile {
     A,
     B,
@@ -39,8 +36,52 @@ export enum Tile {
     WILD_CONSONANT,
 }
 
+/** A mapping of Tile names to Discord emojis */
+export enum TileEmoji {
+    A = ":regional_indicator_a:",
+    B = ":regional_indicator_b:",
+    C = ":regional_indicator_c:",
+    D = ":regional_indicator_d:",
+    E = ":regional_indicator_e:",
+    F = ":regional_indicator_f:",
+    G = ":regional_indicator_g:",
+    H = ":regional_indicator_h:",
+    I = ":regional_indicator_i:",
+    J = ":regional_indicator_j:",
+    K = ":regional_indicator_k:",
+    L = ":regional_indicator_l:",
+    M = ":regional_indicator_m:",
+    N = ":regional_indicator_n:",
+    O = ":regional_indicator_o:",
+    P = ":regional_indicator_p:",
+    Q = ":regional_indicator_q:",
+    R = ":regional_indicator_r:",
+    S = ":regional_indicator_s:",
+    T = ":regional_indicator_t:",
+    U = ":regional_indicator_u:",
+    V = ":regional_indicator_v:",
+    W = ":regional_indicator_w:",
+    X = ":regional_indicator_x:",
+    Y = ":regional_indicator_y:",
+    Z = ":regional_indicator_z:",
+    WILD = ":asterisk:",
+    WILD_VOWEL = ":zero:",
+    WILD_CONSONANT = ":one:",
+}
+// Assert that every tile has an emoji mapping.
+assert(Object.keys(Tile)
+    .filter(key => Number.isNaN(Number(key)))
+    .every(tileName => TileEmoji[tileName as keyof typeof TileEmoji] !== undefined),
+    "A tile is missing an emoji mapping");
+
+export function tileToEmoji(tile: Tile): TileEmoji {
+    const tileName = Tile[tile] as keyof typeof Tile;
+    return TileEmoji[tileName];
+}
+
 export type CAPITAL_LETTER = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z";
 
+/** The phases of a game */
 export enum Phase {
     START,
     WAVE1,
@@ -52,19 +93,31 @@ export enum Phase {
     END,
 }
 
+/** Stores data for a player in the game. */
 export class Player {
+    /** The Discord user playing as this player. */
     user: User;
-    health: number;
+    /** Damage dealt in the previous wave. */
     waveDamage: number;
+    /** Total damage dealt in the current game. */
     totalDamage: number;
+    /** Extra tiles that only this player can use. */
+    supportTiles: Tile[];
+    /** The amount of each tile available for use by the player. */
+    tileCount: Collection<Tile, number>;
 
-    constructor(user: User) {
+    constructor(user: User, supportTiles: Tile[], tileCount: Collection<Tile, number>) {
         this.user = user;
-        this.health = 0;
         this.waveDamage = 0;
         this.totalDamage = 0;
+        this.supportTiles = supportTiles;
+        this.tileCount = tileCount;
     }
 }
+
+const TeamEmbedColor = 0x00ff00;
+const EnemyEmbedColor = 0xff0000;
+const NeutralEmbedColor = 0xffff80;
 
 export class Game {
     // Game Manager Related
@@ -79,21 +132,24 @@ export class Game {
     // Gameplay Related
     private phase: Phase;
     private tiles: Tile[];
-    private tileCount: Collection<Tile, number>;
     private players: Collection<UserId, Player>;
+    private teamHealth: number;
+    private bossHealth: number;
 
     /**
      * @param gameManager The game manager responsible for this game.
      * @param guild The guild this game is played in.
-     * @param players The players participating in this game.
+     * @param users The players participating in this game.
      * @param interaction The interaction to use for output.
      * @param channel The channel the interaction was sent in.
      * @param destroyCallback A callback that gets called when this game stops.
      */
-    constructor(gameManager: GameManager, guild: Guild, players: User[], interaction: CommandInteraction, channel: GuildTextBasedChannel, destroyCallback: (game: Game) => void) {
+    constructor(gameManager: GameManager, guild: Guild, users: User[], interaction: CommandInteraction, channel: GuildTextBasedChannel, destroyCallback: (game: Game) => void) {
+        assert(users.length <= 24, "Too many players"); // Temporary; not very elegant.
+
         this.gameManager = gameManager;
         this.guild = guild;
-        this.users = players;
+        this.users = users;
         this.interaction = interaction;
         this.channel = channel;
         this.collector = channel.createMessageCollector({
@@ -104,49 +160,41 @@ export class Game {
 
         this.phase = Phase.START;
         this.tiles = [];
-        this.tileCount = this.generateTileCount([]);
         this.players = new Collection();
+        this.users.forEach(user => {
+            const supportTiles = this.generateTiles(2);
+            const playerTileCount = this.generateTileCount(supportTiles);
+            const player = new Player(user, supportTiles, playerTileCount);
+            this.players.set(user.id, player);
+        });
+        this.teamHealth = 15;
+        this.bossHealth = 8888;
+
+        this.collector.on('collect', msg => this.onCollectPlayerMessage(msg));
     }
 
     /** Runs this game asyncronously. */
     async run(): Promise<void> {
-        // Initial interaction response.
+        // Ensure the interaction has an initial response.
         await autoReply(this.interaction, {
             content: "Game #727",
         });
 
-        // Setup
-        this.users.forEach(user => this.players.set(user.id, new Player(user)));
-        this.collector.on('collect', msg => this.onCollectPlayerMessage(msg));
+        // Start game.
+        await this.displayBossStatus();
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await this.displayPlayerInventory();
+        await new Promise(resolve => setTimeout(resolve, 3000));
 
-        // Start game. Generate and display tiles.
-        this.tiles = this.generateTiles(14);
-        this.tileCount = this.generateTileCount(this.tiles);
-        await this.interaction.followUp({
-            content: `Tiles: \`\`${this.tiles.map(tile => "ABCDEFGHIJKLMNOPQRSTUVWXYZ*vc?????"[tile]).join("")}\`\``,
-        })
+        // Wave 1.
+        this.updateTilePool(this.generateTiles(6));
+        await this.displayIncomingAttacks(1);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        await this.displayTiles();
+        await new Promise(resolve => setTimeout(resolve, 3000));
 
-        // Wave 1. Accepting answers and display timer.
-        const rep = await this.interaction.followUp({
-            content: "Wave 1. Time Left: 30 s",
-            fetchReply: true,
-        });
         this.phase = Phase.WAVE1;
-        for (let seconds = 29; seconds >= 0; seconds--) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            if (seconds > 10 && seconds % 5 === 0) {
-                await rep.edit({
-                    content: `Wave 1. Time Left: ${seconds} s`,
-                });
-            } else if (seconds === 10) {
-                await rep.edit({
-                    content: "Wave 1.",
-                });
-                await this.interaction.followUp({
-                    content: `${seconds} s left!`,
-                });
-            }
-        }
+        await this.displayWaveTimer(30);
 
         // Intermission 1. Display results.
         this.phase = Phase.INTERMISSION1;
@@ -192,17 +240,21 @@ export class Game {
             return;
         }
 
-        const word = msg.content.trim().toUpperCase();
-        const recognizedWord = wordList.has(word.toLowerCase());
-        const wordAsTiles = this.wordToTiles(msg.content.trim(), this.tileCount);
-        const tilesValid = wordAsTiles !== null;
-        if (!recognizedWord) {
+        const player: Player | undefined = this.players.get(msg.author.id);
+        assert(player !== undefined, "Collected a message from a non-player");
+
+        const word = msg.content.trim().toLowerCase();
+        const validWord = wordList.has(word);
+        if (!validWord) {
             msg.react("❌")
                 .catch(err => {
                     console.error(err)
                 });
             return;
         }
+
+        const wordAsTiles = this.wordToTiles(word, player.tileCount);
+        const tilesValid = wordAsTiles !== null;
         if (!tilesValid) {
             msg.react("🔢")
                 .catch(err => {
@@ -210,17 +262,17 @@ export class Game {
                 });
             return;
         }
+
         const score = this.scoreWord(wordAsTiles);
-        const player: Player | undefined = this.players.get(msg.author.id);
-        assert(player !== undefined);
         player.waveDamage += score;
         player.totalDamage += score;
-        await msg.react("✅")
-            .catch(err => {
-                console.error(err)
-            })
+        try {
+            await msg.react("✅")
+        } catch (err) {
+            console.error(err)
+        }
         let scoreToDisplay = score;
-        const reactions = ["🔅", "⭐", "💫", "☄️", "🪩", "🎇", "🎆"];
+        const reactions = ["🔅", "☀️", "⭐", "🪐", "💫", "☄️", "🪩"];
         while (scoreToDisplay > 0) {
             let emoji = "";
             for (let index = reactions.length - 1; index >= 0; index--) {
@@ -231,10 +283,126 @@ export class Game {
                     break;
                 }
             }
-            await msg.react(emoji)
-                .catch(err => {
-                    console.error(err)
+            try {
+                await msg.react(emoji)
+            } catch (err) {
+                console.error(err)
+            }
+        }
+    }
+
+    private async displayPlayerInventory(): Promise<void> {
+        const fields: APIEmbedField[] = [];
+        for (const player of this.players.values()) {
+            fields.push({
+                name: player.user.tag,
+                value: player.supportTiles.map(tileToEmoji).join(" "),
+            });
+        }
+        const embed = new EmbedBuilder()
+            .setColor(TeamEmbedColor)
+            .setTitle("Player Equipment")
+            .setDescription("Every player receives 2 support tiles that only they can use.")
+            .addFields(fields);
+        await this.interaction.followUp({
+            embeds: [embed],
+        });
+    }
+
+    private async displayBossStatus(): Promise<void> {
+        const embed = new EmbedBuilder()
+            .setColor(EnemyEmbedColor)
+            .setTitle("Boss")
+            .addFields({ name: "Health", value: `${this.bossHealth}:heart:` });
+        await this.interaction.followUp({
+            embeds: [embed],
+        });
+    }
+
+    private async displayTiles(): Promise<void> {
+        const fields: APIEmbedField[] = [];
+        const tilePerRow = 8;
+        for (let index = 0; index < this.tiles.length; index += tilePerRow) {
+            const rowTiles = this.tiles.slice(index, Math.min(index + tilePerRow, this.tiles.length));
+            fields.push({
+                name: "Team",
+                value: rowTiles.map(tileToEmoji).join(" "),
+            });
+        }
+        for (const player of this.players.values()) {
+            fields.push({
+                name: player.user.tag,
+                value: player.supportTiles.map(tileToEmoji).join(" "),
+            });
+        }
+        const embed = new EmbedBuilder()
+            .setColor(NeutralEmbedColor)
+            .setTitle(`Get Ready`)
+            .setDescription("Spell as many words as possible using these tiles.")
+            .addFields(fields);
+        await this.interaction.followUp({
+            embeds: [embed],
+        });
+    }
+
+    private async displayIncomingAttacks(wave: 1 | 2 | 3): Promise<void> {
+        const embed = new EmbedBuilder()
+            .setColor(EnemyEmbedColor)
+            .setTitle(`Wave ${wave} | Enemies Incoming`)
+            .setDescription("Stop them!")
+            .addFields(
+                { name: ":goblin:", value: "Curse of ra!" },
+                { name: ":goblin:", value: "Curse of ra!" },
+                { name: ":goblin:", value: "Curse of ra!" },
+            );
+        await this.interaction.followUp({
+            embeds: [embed],
+        });
+    }
+
+    private async displayWaveTimer(seconds: number): Promise<void> {
+        assert(Number.isInteger(seconds));
+        assert(seconds >= 1);
+        let secondsLeft = seconds;
+        const message = "Go!"
+        const timerSymbol = ":white_large_square:";
+        const embed = new EmbedBuilder()
+            .setColor(NeutralEmbedColor)
+            .setTitle(message)
+            .setDescription(`:clock11:${timerSymbol.repeat(secondsLeft / 5)}`);
+        const rep = await this.interaction.followUp({
+            embeds: [embed],
+            fetchReply: true,
+        });
+
+        let timeWarning: Message | null = null;
+        while (secondsLeft > 0) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            secondsLeft--;
+
+            if (secondsLeft % 5 === 0) {
+                let clockNum = Math.floor(12 * secondsLeft / seconds);
+                if (clockNum === 0) {
+                    clockNum = 12;
+                }
+                embed.setDescription(`:clock${clockNum}:${timerSymbol.repeat(secondsLeft / 5)}`);
+                await rep.edit({
+                    embeds: [embed],
                 });
+            }
+
+            if (secondsLeft === 10) {
+                timeWarning = await this.interaction.followUp({
+                    embeds: [new EmbedBuilder()
+                        .setColor(NeutralEmbedColor)
+                        .setTitle("10 seconds remaining")],
+                    fetchReply: true,
+                });
+            }
+        }
+
+        if (timeWarning !== null) {
+            await timeWarning.delete();
         }
     }
 
@@ -278,6 +446,13 @@ export class Game {
             count.set(tile, count.get(tile)! + 1);
         }
         return count;
+    }
+
+    private updateTilePool(tiles: Tile[]) {
+        this.tiles = tiles;
+        this.players.forEach(player => {
+            player.tileCount = this.generateTileCount([...this.tiles, ...player.supportTiles]);
+        });
     }
 
     /**
