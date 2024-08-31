@@ -101,21 +101,15 @@ export class Player {
     waveDamage: number;
     /** Total damage dealt in the current game. */
     totalDamage: number;
-    /** Extra tiles that only this player can use. */
-    supportTiles: Tile[];
-    /** The amount of each tile available for use by the player. */
-    tileCount: Collection<Tile, number>;
 
-    constructor(user: User, supportTiles: Tile[], tileCount: Collection<Tile, number>) {
+    constructor(user: User) {
         this.user = user;
         this.waveDamage = 0;
         this.totalDamage = 0;
-        this.supportTiles = supportTiles;
-        this.tileCount = tileCount;
     }
 }
 
-const TeamEmbedColor = 0x00ff00;
+const PlayerEmbedColor = 0x00ff00;
 const EnemyEmbedColor = 0xff0000;
 const NeutralEmbedColor = 0xffff80;
 
@@ -132,6 +126,7 @@ export class Game {
     // Gameplay Related
     private phase: Phase;
     private tiles: Tile[];
+    private tileCount: Collection<Tile, number>;
     private players: Collection<UserId, Player>;
     private teamHealth: number;
     private bossHealth: number;
@@ -160,11 +155,12 @@ export class Game {
 
         this.phase = Phase.START;
         this.tiles = [];
+        this.tileCount = this.generateTileCount(this.tiles);
         this.players = new Collection();
         this.users.forEach(user => {
             const supportTiles = this.generateTiles(2);
             const playerTileCount = this.generateTileCount(supportTiles);
-            const player = new Player(user, supportTiles, playerTileCount);
+            const player = new Player(user);
             this.players.set(user.id, player);
         });
         this.teamHealth = 15;
@@ -181,31 +177,23 @@ export class Game {
         });
 
         // Start game.
-        await this.displayBossStatus();
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await this.displayPlayerInventory();
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await this.displayPlayers("Players");
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        await this.displayBossStatus("Boss");
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
         // Wave 1.
-        this.updateTilePool(this.generateTiles(6));
-        await this.displayIncomingAttacks(1);
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        await this.displayTiles();
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        this.updateTilePool(this.generateTiles(8));
+        await this.displayTiles("Wave 1 | Get Ready");
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        // // / / / / await this.displayIncomingAttacks(1);
 
         this.phase = Phase.WAVE1;
         await this.displayWaveTimer(30);
 
         // Intermission 1. Display results.
         this.phase = Phase.INTERMISSION1;
-        const leaderboardRaw: [number, string][] = [];
-        for (const player of this.players.values()) {
-            const line: string = `${player.user.tag}: +${player.waveDamage}`;
-            leaderboardRaw.push([player.totalDamage, line]);
-        }
-        leaderboardRaw.sort((a, b) => a[0] - b[0]);
-        const leaderboard = leaderboardRaw.map(line => line[1]);
-        await this.interaction.followUp(`Wave 1 Results\n${leaderboard.join('\n')}`);
+        await this.displayLeaderboard("Wave 1 | Results");
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         await this.interaction.followUp({
@@ -253,7 +241,7 @@ export class Game {
             return;
         }
 
-        const wordAsTiles = this.wordToTiles(word, player.tileCount);
+        const wordAsTiles = this.wordToTiles(word, this.tileCount);
         const tilesValid = wordAsTiles !== null;
         if (!tilesValid) {
             msg.react("🔢")
@@ -291,65 +279,63 @@ export class Game {
         }
     }
 
-    private async displayPlayerInventory(): Promise<void> {
+    private async displayPlayers(title: string): Promise<void> {
         const fields: APIEmbedField[] = [];
         for (const player of this.players.values()) {
             fields.push({
                 name: player.user.tag,
-                value: player.supportTiles.map(tileToEmoji).join(" "),
+                value: player.user.tag,
             });
         }
+
         const embed = new EmbedBuilder()
-            .setColor(TeamEmbedColor)
-            .setTitle("Player Equipment")
-            .setDescription("Every player receives 2 support tiles that only they can use.")
+            .setColor(PlayerEmbedColor)
+            .setTitle(title)
             .addFields(fields);
+
         await this.interaction.followUp({
             embeds: [embed],
         });
     }
 
-    private async displayBossStatus(): Promise<void> {
+    private async displayBossStatus(title: string): Promise<void> {
         const embed = new EmbedBuilder()
             .setColor(EnemyEmbedColor)
-            .setTitle("Boss")
+            .setTitle(title)
             .addFields({ name: "Health", value: `${this.bossHealth}:heart:` });
+
         await this.interaction.followUp({
             embeds: [embed],
         });
     }
 
-    private async displayTiles(): Promise<void> {
+    private async displayTiles(title: string): Promise<void> {
         const fields: APIEmbedField[] = [];
         const tilePerRow = 8;
         for (let index = 0; index < this.tiles.length; index += tilePerRow) {
             const rowTiles = this.tiles.slice(index, Math.min(index + tilePerRow, this.tiles.length));
             fields.push({
-                name: "Team",
+                name: "_",
                 value: rowTiles.map(tileToEmoji).join(" "),
             });
         }
-        for (const player of this.players.values()) {
-            fields.push({
-                name: player.user.tag,
-                value: player.supportTiles.map(tileToEmoji).join(" "),
-            });
-        }
+
         const embed = new EmbedBuilder()
             .setColor(NeutralEmbedColor)
-            .setTitle(`Get Ready`)
+            .setTitle(title)
             .setDescription("Spell as many words as possible using these tiles.")
             .addFields(fields);
+
         await this.interaction.followUp({
             embeds: [embed],
         });
     }
 
-    private async displayIncomingAttacks(wave: 1 | 2 | 3): Promise<void> {
+    private async displayIncomingAttacks(title: string, description: string): Promise<void> {
         const embed = new EmbedBuilder()
             .setColor(EnemyEmbedColor)
-            .setTitle(`Wave ${wave} | Enemies Incoming`)
-            .setDescription("Stop them!")
+            .setTitle(title)
+            .setDescription(description)
             .addFields(
                 { name: ":goblin:", value: "Curse of ra!" },
                 { name: ":goblin:", value: "Curse of ra!" },
@@ -363,6 +349,7 @@ export class Game {
     private async displayWaveTimer(seconds: number): Promise<void> {
         assert(Number.isInteger(seconds));
         assert(seconds >= 1);
+
         let secondsLeft = seconds;
         const message = "Go!"
         const timerSymbol = ":white_large_square:";
@@ -370,9 +357,9 @@ export class Game {
             .setColor(NeutralEmbedColor)
             .setTitle(message)
             .setDescription(`:clock11:${timerSymbol.repeat(secondsLeft / 5)}`);
+
         const rep = await this.interaction.followUp({
             embeds: [embed],
-            fetchReply: true,
         });
 
         let timeWarning: Message | null = null;
@@ -393,10 +380,7 @@ export class Game {
 
             if (secondsLeft === 10) {
                 timeWarning = await this.interaction.followUp({
-                    embeds: [new EmbedBuilder()
-                        .setColor(NeutralEmbedColor)
-                        .setTitle("10 seconds remaining")],
-                    fetchReply: true,
+                    content: "10 seconds remaining",
                 });
             }
         }
@@ -404,6 +388,27 @@ export class Game {
         if (timeWarning !== null) {
             await timeWarning.delete();
         }
+    }
+
+    private async displayLeaderboard(title: string) {
+        // Get players from highest to lowest total damage.
+        const playersInOrder = this.players
+            .clone()
+            .sort((playerA, playerB) => playerB.totalDamage - playerA.totalDamage);
+
+        const fields = playersInOrder.map(player => ({
+            name: player.user.tag,
+            value: `+${player.waveDamage} dmg (${player.totalDamage} dmg)`,
+        }));
+
+        const embed = new EmbedBuilder()
+            .setColor(PlayerEmbedColor)
+            .setTitle(title)
+            .addFields(fields);
+
+        await this.interaction.followUp({
+            embeds: [embed],
+        });
     }
 
     /** Stops this game gracefully. */
@@ -450,9 +455,7 @@ export class Game {
 
     private updateTilePool(tiles: Tile[]) {
         this.tiles = tiles;
-        this.players.forEach(player => {
-            player.tileCount = this.generateTileCount([...this.tiles, ...player.supportTiles]);
-        });
+        this.tileCount = this.generateTileCount(tiles);
     }
 
     /**
