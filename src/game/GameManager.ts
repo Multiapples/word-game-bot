@@ -101,11 +101,19 @@ export class Player {
     waveDamage: number;
     /** Total damage dealt in the current game. */
     totalDamage: number;
+    /** Maps all words played by this player during this wave to their score. */
+    waveWords: Collection<string, number>;
 
     constructor(user: User) {
         this.user = user;
         this.waveDamage = 0;
         this.totalDamage = 0;
+        this.waveWords = new Collection();
+    }
+
+    resetWave(): void {
+        this.waveDamage = 0;
+        this.waveWords.clear();
     }
 }
 
@@ -128,6 +136,7 @@ export class Game {
     private tiles: Tile[];
     private tileCount: Collection<Tile, number>;
     private players: Collection<UserId, Player>;
+    private wordsPlayed: string[];
     private teamHealth: number;
     private bossHealth: number;
 
@@ -157,12 +166,8 @@ export class Game {
         this.tiles = [];
         this.tileCount = this.generateTileCount(this.tiles);
         this.players = new Collection();
-        this.users.forEach(user => {
-            const supportTiles = this.generateTiles(2);
-            const playerTileCount = this.generateTileCount(supportTiles);
-            const player = new Player(user);
-            this.players.set(user.id, player);
-        });
+        this.users.forEach(user => this.players.set(user.id, new Player(user)));
+        this.wordsPlayed = [];
         this.teamHealth = 15;
         this.bossHealth = 8888;
 
@@ -193,14 +198,18 @@ export class Game {
 
         // Intermission 1. Display results.
         this.phase = Phase.INTERMISSION1;
+        await this.displayWordsCrafted("Wave 1 | Words Crafted");
+        await new Promise(resolve => setTimeout(resolve, 1500));
         await this.displayLeaderboard("Wave 1 | Results");
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
         await this.interaction.followUp({
             content: "💥🐙❗",
         });
         await new Promise(resolve => setTimeout(resolve, 1000));
 
+
+        this.players.forEach(player => player.resetWave());
         // Skip waves 2 and 3 for now.
 
         // End. Display cumulative results.
@@ -230,8 +239,16 @@ export class Game {
 
         const player: Player | undefined = this.players.get(msg.author.id);
         assert(player !== undefined, "Collected a message from a non-player");
-
         const word = msg.content.trim().toLowerCase();
+        const unoriginal = this.wordsPlayed.includes(word);
+        if (unoriginal) {
+            msg.react("🔂")
+                .catch(err => {
+                    console.error(err)
+                });
+            return;
+        }
+
         const validWord = wordList.has(word);
         if (!validWord) {
             msg.react("❌")
@@ -251,7 +268,9 @@ export class Game {
             return;
         }
 
+        this.wordsPlayed.push(word);
         const score = this.scoreWord(wordAsTiles);
+        player.waveWords.set(word, score);
         player.waveDamage += score;
         player.totalDamage += score;
         try {
@@ -390,13 +409,49 @@ export class Game {
         }
     }
 
-    private async displayLeaderboard(title: string) {
-        // Get players from highest to lowest total damage.
-        const playersInOrder = this.players
-            .clone()
+    private async displayWordsCrafted(title: string) {
+        // Get players from highest to lowest wave damage.
+        const playersInOrder = [...this.players.values()]
             .sort((playerA, playerB) => playerB.totalDamage - playerA.totalDamage);
 
-        const fields = playersInOrder.map(player => ({
+        const fields: APIEmbedField[] = [];
+        const wordsPerPlayer = 6; // This stays well under the 1024 char limit for field values.
+        for (const player of this.players.values()) {
+            // Sort words from highest to lowest score.
+            const wordsInOrder: [string, number][] = [...player.waveWords.entries()]
+                .sort((entryA, entryB) => entryB[1] - entryA[1]);
+            const numWordsToShow = Math.min(wordsPerPlayer, wordsInOrder.length);
+            const wordsToShow = wordsInOrder.slice(0, numWordsToShow);
+            let lines: string[] = wordsToShow.map(entry => `**${entry[0].toUpperCase()}**: ${entry[1]} dmg`);
+            if (lines.length === 0) {
+                lines = ["none"];
+            }
+            if (wordsInOrder.length > wordsPerPlayer) {
+                const extraWords = wordsInOrder.length - wordsPerPlayer;
+                lines.push(`(...${extraWords} more)`);
+            }
+            fields.push({
+                name: player.user.tag,
+                value: lines.join("\n"),
+            });
+        }
+
+        const embed = new EmbedBuilder()
+            .setColor(PlayerEmbedColor)
+            .setTitle(title)
+            .addFields(fields);
+
+        await this.interaction.followUp({
+            embeds: [embed],
+        });
+    }
+
+    private async displayLeaderboard(title: string) {
+        // Get players from highest to lowest total damage.
+        const playersInOrder = [...this.players.values()]
+            .sort((playerA, playerB) => playerB.totalDamage - playerA.totalDamage);
+
+        const fields: APIEmbedField[] = playersInOrder.map(player => ({
             name: player.user.tag,
             value: `+${player.waveDamage} dmg (${player.totalDamage} dmg)`,
         }));
