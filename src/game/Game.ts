@@ -183,7 +183,7 @@ export class Game {
             let newTiles: Tile[] = tilesPerWave[wave - 1];
             this.updateTilePool([...this.tiles, ...newTiles]);
             await this.displayTiles(`Wave ${wave} | Get Ready`);
-            await new Promise(resolve => setTimeout(resolve, 1000 + 1000 * wave));
+            await new Promise(resolve => setTimeout(resolve, 2000 + 1000 * wave));
 
             this.phase = Phase[`WAVE${wave}`];
             await this.displayWaveTimer(15);
@@ -191,6 +191,13 @@ export class Game {
             this.phase = Phase[`INTERMISSION${wave}`];
             await this.displayWordsCrafted(`Wave ${wave} | Words Crafted`);
             await new Promise(resolve => setTimeout(resolve, 3000));
+            if (this.currentObjectives.length > 0) {
+                await this.displayCompletedAttacks(
+                    `Wave ${wave} | You blocked all the enemies`,
+                    `Wave ${wave} | Some enemies got through`,
+                );
+                await new Promise(resolve => setTimeout(resolve, 3000));
+            }
             await this.displayHurt(`Wave ${wave} | Damage`);
             await new Promise(resolve => setTimeout(resolve, 3000));
 
@@ -348,20 +355,10 @@ export class Game {
     /** Outputs an embed of incoming enemy attack objectives. */
     private async displayIncomingAttacks(title: string, description: string): Promise<void> {
         const fields: APIEmbedField[] = this.currentObjectives
-            .map(pair => {
-                const [obj, completed] = pair;
-                if (completed) {
-                    return {
-                        name: `~~(-${":squid:".repeat(obj.getDamage())})~~`,
-                        value: obj.getDescription(),
-                    }
-                } else {
-                    return {
-                        name: `(-${obj.getDamage()}${":squid:".repeat(obj.getDamage())})`,
-                        value: obj.getDescription(),
-                    }
-                }
-            });
+            .map(pair => ({
+                name: `(-${pair[0].getDamage()}${":squid:".repeat(pair[0].getDamage())})`,
+                value: pair[0].getDescription(),
+            }));
 
         const embed = new EmbedBuilder()
             .setColor(enemyEmbedColor)
@@ -376,6 +373,33 @@ export class Game {
             embed.setFields(fields.slice(0, index + 1));
             await rep.edit({ embeds: [embed] });
         }
+    }
+
+    private async displayCompletedAttacks(goodTitle: string, badTitle: string): Promise<void> {
+        let good: boolean = true;
+        const fields: APIEmbedField[] = this.currentObjectives
+            .map(pair => {
+                const [obj, completed] = pair;
+                if (completed) {
+                    return {
+                        name: `~~(-${":squid:".repeat(obj.getDamage())})~~`,
+                        value: obj.getDescription(),
+                    }
+                } else {
+                    good = false;
+                    return {
+                        name: `(-${obj.getDamage()}${":squid:".repeat(obj.getDamage())})`,
+                        value: obj.getDescription(),
+                    }
+                }
+            });
+
+        const embed = new EmbedBuilder()
+            .setColor(good ? playerEmbedColor : enemyEmbedColor)
+            .setTitle(good ? goodTitle : badTitle)
+            .setFields(fields);
+
+        await this.interaction.followUp({ embeds: [embed] });
     }
 
     /** Outputs an embed displaying a timer and updates that timer until it expires. */
