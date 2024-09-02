@@ -33,7 +33,7 @@ class LengthObjective extends BaseObjective implements Objective {
         this.length = length;
     }
     getDescription(): string {
-        return `Spell a word at least ${length} long`;
+        return `Spell a word at least ${this.length} long`;
     }
     meetsObjective(word: string, score: number): boolean {
         return word.length >= this.length;
