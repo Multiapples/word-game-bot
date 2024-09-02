@@ -1,4 +1,7 @@
 import { assert } from "../util/assert";
+import { Random } from "./Random";
+
+export type CAPITAL_LETTER = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z";
 
 /** Possible game tiles. */
 export enum Tile {
@@ -65,6 +68,7 @@ export enum TileEmoji {
     WILD_VOWEL = ":zero:",
     WILD_CONSONANT = ":one:",
 }
+
 // Assert that every tile has an emoji mapping.
 assert(Object.keys(Tile)
     .filter(key => Number.isNaN(Number(key)))
@@ -77,4 +81,11 @@ export function tileToEmoji(tile: Tile): TileEmoji {
     return TileEmoji[tileName];
 }
 
-export type CAPITAL_LETTER = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z";
+/**
+ * Returns a random tile.
+ * @param random A random number generator. Will be polled once.
+ */
+export function randomTile(random: Random): Tile {
+    const values = Object.values(Tile).filter(value => typeof(value) === "number");
+    return values[random.nextInt(0, values.length)];
+}
