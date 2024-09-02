@@ -29,12 +29,24 @@ export class Random {
     /**
      * @returns A random number in [0, 1).
      */
-    nextFloat(): number{
+    nextFloat(): number {
         const n = this.nextIntNonZero();
         if (n < 0) {
             return (n + 2147483648) / 4294967295;
         } else {
             return (n + 2147483647) / 4294967295;
         }
+    }
+
+    /**
+     * @returns A random integer from start (inclusive) to end (exclusive).
+     * @requires start and end must be integers and start must be strictly less than end.
+     */
+    nextInt(start: number, end: number): number {
+        assert(Number.isInteger(start));
+        assert(Number.isInteger(end));
+        assert(start < end);
+        return Math.max(start, Math.min(end - 1,
+            Math.floor(start + this.nextFloat() * (end - start))));
     }
 }
