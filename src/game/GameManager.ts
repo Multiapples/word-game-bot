@@ -35,7 +35,11 @@ export class GameManager {
             return;
         }
         // Create new game.
-        const game: Game = new Game(this, guild, players, interaction, interaction.channel, game => this.destroyGame(game));
+        const now = new Date();
+        const nowUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+        const startOfYear = Date.UTC(now.getFullYear(), 0, 0);
+        const day = (nowUTC - startOfYear) / 1000 / 60 / 60 / 24;
+        const game = new Game(this, guild, players, interaction, interaction.channel, game => this.destroyGame(game), day);
         players.forEach(user => guildGames.set(user.id, game));
         game.run()
             .catch(async error => {

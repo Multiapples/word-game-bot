@@ -5,6 +5,7 @@ import { GameManager } from "./GameManager";
 import { Player } from "./Player";
 import { Tile, tileToEmoji, CAPITAL_LETTER } from "./Tile";
 import { wordList } from "./wordList/wordList";
+import { Random } from "./Random";
 
 
 const PlayerEmbedColor = 0x00ff00;
@@ -36,6 +37,8 @@ export class Game {
     private destroyCallback: (game: Game) => void;
 
     // Gameplay Related
+    private day: number;
+    private random: Random;
     private phase: Phase;
     private tiles: Tile[];
     private tileCount: Collection<Tile, number>;
@@ -51,9 +54,13 @@ export class Game {
      * @param interaction The interaction to use for output.
      * @param channel The channel the interaction was sent in.
      * @param destroyCallback A callback that gets called when this game stops.
+     * @param day An integer that determines which unique random game to play.
      */
-    constructor(gameManager: GameManager, guild: Guild, users: User[], interaction: CommandInteraction, channel: GuildTextBasedChannel, destroyCallback: (game: Game) => void) {
-        assert(users.length <= 24, "Too many players"); // Temporary; not very elegant.
+    constructor(gameManager: GameManager, guild: Guild, users: User[],
+        interaction: CommandInteraction, channel: GuildTextBasedChannel,
+        destroyCallback: (game: Game) => void, day: number) {
+
+        assert(users.length <= 22, "Too many players"); // Temporary; not very elegant.
 
         this.gameManager = gameManager;
         this.guild = guild;
@@ -66,6 +73,8 @@ export class Game {
         });
         this.destroyCallback = destroyCallback;
 
+        this.day = day;
+        this.random = new Random(day);
         this.phase = Phase.START;
         this.tiles = [];
         this.tileCount = this.generateTileCount(this.tiles);
@@ -82,15 +91,16 @@ export class Game {
     async run(): Promise<void> {
         // Ensure the interaction has an initial response.
         await autoReply(this.interaction, {
-            content: "Game #727",
+            content: `Game #${this.day}`,
         });
 
-        // Start game.
+        // Start
         await this.displayPlayers();
         await new Promise(resolve => setTimeout(resolve, 500));
         await this.displayBossStatus();
         await new Promise(resolve => setTimeout(resolve, 1500));
 
+        // Waves
         const waves = 3;
         for (let wave = 1; wave <= 3; wave++) {
             assert(wave === 1 || wave === 2 || wave === 3);
@@ -126,6 +136,7 @@ export class Game {
             this.players.forEach(player => player.resetWave());
         }
 
+        // End
         this.phase = Phase.END;
         this.collector.stop();
         if (this.teamHealth > 0 && this.bossHealth <= 0) {
@@ -466,13 +477,17 @@ export class Game {
         }
     }
 
-    /** Generates an array of random tiles. */
+    /**
+     * Generates an array of random tiles.
+     * Rolls {@link random}.
+     */
     private generateTiles(length: number): Tile[] {
         assert(Number.isInteger(length));
         assert(length >= 0);
         const tiles: Tile[] = [];
+        const enumOptions = (Object.keys(Tile).length / 2); // Divide by 2 because typescript enums store reverse mappings as well.
         for (let i = 0; i < length; i++) {
-            tiles.push(Math.floor(Math.random() * (Object.keys(Tile).length / 2)));
+            tiles.push(Math.floor(this.random.nextFloat() * enumOptions));
         }
         return tiles;
     }
