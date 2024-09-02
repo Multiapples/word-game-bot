@@ -44,5 +44,7 @@ export async function initWordList(): Promise<void> {
             wordList.add(word);
             commonWordList.add(word);
         });
+    (await readWordList("src/game/wordList/wordsCustom.txt"))
+        .forEach(word => wordList.add(word));
 }
 
