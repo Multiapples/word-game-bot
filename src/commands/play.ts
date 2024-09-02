@@ -4,7 +4,7 @@ import { getGameManager } from "../game/GameManager";
 
 export class PlayCommand implements Command {
 
-    slashCommand: SlashCommandBuilder = new SlashCommandBuilder()
+    slashCommand = new SlashCommandBuilder()
         .setName("play")
         .setDescription("Starts a game");
 

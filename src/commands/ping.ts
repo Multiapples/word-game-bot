@@ -3,7 +3,7 @@ import { Command } from "./commandInterface";
 
 export class PingCommand implements Command {
 
-    slashCommand: SlashCommandBuilder = new SlashCommandBuilder()
+    slashCommand = new SlashCommandBuilder()
         .setName("ping")
         .setDescription("Test latency");
 
