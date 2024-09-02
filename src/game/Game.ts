@@ -527,12 +527,12 @@ export class Game {
     private async displayHurt(title: string): Promise<void> {
         let bossHurt = 0;
         this.players.each(player => bossHurt += player.waveDamage);
-        const bossHurtSymbol = bossHurt > 0 ? ":boom:" : "";
-        const bossField = { name: `Boss${bossSymbol}`, value: `${bossHurtSymbol}${this.bossHealth} :heart:` };
+        const bossHeartSymbol = bossHurt > 0 ? ":boom:" : ":heart:";
+        const bossField = { name: `Boss${bossSymbol}`, value: `${this.bossHealth} ${bossHeartSymbol}` };
 
         let teamHurt = 0;
-        const teamHurtSymbol = teamHurt > 0 ? ":boom:" : "";
-        const teamField = { name: `Team${teamSymbol}`, value: `${teamHurtSymbol}${this.teamHealth} :heart:` };
+        const teamHeartSymbol = teamHurt > 0 ? ":boom:" : ":heart:";
+        const teamField = { name: `Team${teamSymbol}`, value: `${this.teamHealth} ${teamHeartSymbol}` };
 
         const embed = new EmbedBuilder()
             .setColor(neutralEmbedColor)
