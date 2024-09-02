@@ -9,9 +9,9 @@ import { Random } from "./Random";
 import { TileCount } from "./TileCount";
 
 
-const PlayerEmbedColor = 0x00ff00;
-const EnemyEmbedColor = 0xff0000;
-const NeutralEmbedColor = 0xffff80;
+const playerEmbedColor = 0x00ff00;
+const enemyEmbedColor = 0xff0000;
+const neutralEmbedColor = 0xffff80;
 
 const bossSymbol = "🐙";
 const teamSymbol = "⚔️";
@@ -111,7 +111,7 @@ export class Game {
             const finalWave = wave === waves;
 
             if (finalWave) {
-                await this.displayTitle("Final Wave", NeutralEmbedColor);
+                await this.displayTitle("Final Wave", neutralEmbedColor);
                 await new Promise(resolve => setTimeout(resolve, 1500));
             }
 
@@ -178,11 +178,11 @@ export class Game {
         this.phase = Phase.END;
         this.collector.stop();
         if (this.teamHealth <= 0) {
-            await this.displayTitle("YOU DIED :fearful:", EnemyEmbedColor);
+            await this.displayTitle("YOU DIED :fearful:", enemyEmbedColor);
         } else if (this.bossHealth <= 0) {
-            await this.displayTitle(`You defeated the boss! ${teamSymbol}`, PlayerEmbedColor);
+            await this.displayTitle(`You defeated the boss! ${teamSymbol}`, playerEmbedColor);
         } else {
-            await this.displayTitle(`The boss got away! ${bossSymbol}`, NeutralEmbedColor);
+            await this.displayTitle(`The boss got away! ${bossSymbol}`, neutralEmbedColor);
         }
         await new Promise(resolve => setTimeout(resolve, 3000));
         await this.displayGameRecap("Performance");
@@ -271,7 +271,7 @@ export class Game {
         });
 
         const embed = new EmbedBuilder()
-            .setColor(PlayerEmbedColor)
+            .setColor(playerEmbedColor)
             .setTitle(`Team${teamSymbol}`)
             .addFields(fields);
 
@@ -283,7 +283,7 @@ export class Game {
     /** Outputs an embed of the boss health. */
     private async displayBossStatus(): Promise<void> {
         const embed = new EmbedBuilder()
-            .setColor(EnemyEmbedColor)
+            .setColor(enemyEmbedColor)
             .setTitle(`Boss${bossSymbol}`)
             .addFields({ name: "Health", value: `${this.bossHealth}:heart:` });
 
@@ -302,7 +302,7 @@ export class Game {
         }
 
         const embed = new EmbedBuilder()
-            .setColor(PlayerEmbedColor)
+            .setColor(playerEmbedColor)
             .setTitle(title)
             .setDescription("Spell as many words as possible using these tiles.")
             .addFields({
@@ -318,7 +318,7 @@ export class Game {
     /** Outputs an embed of incoming enemy attack objectives. */
     private async displayIncomingAttacks(title: string, description: string): Promise<void> {
         const embed = new EmbedBuilder()
-            .setColor(EnemyEmbedColor)
+            .setColor(enemyEmbedColor)
             .setTitle(title)
             .setDescription(description)
             .addFields(
@@ -340,7 +340,7 @@ export class Game {
         const message = "Go!"
         const timerSymbol = ":white_large_square:";
         const embed = new EmbedBuilder()
-            .setColor(NeutralEmbedColor)
+            .setColor(neutralEmbedColor)
             .setTitle(message)
             .setDescription(`:clock11:${timerSymbol.repeat(secondsLeft / 5)}`);
 
@@ -404,7 +404,7 @@ export class Game {
         });
 
         const embed = new EmbedBuilder()
-            .setColor(NeutralEmbedColor)
+            .setColor(neutralEmbedColor)
             .setTitle(title)
             .addFields(fields);
 
@@ -425,7 +425,7 @@ export class Game {
         }));
 
         const embed = new EmbedBuilder()
-            .setColor(NeutralEmbedColor)
+            .setColor(neutralEmbedColor)
             .setTitle(title)
             .addFields(fields);
 
@@ -446,7 +446,7 @@ export class Game {
         const teamField = { name: `Team${teamSymbol}`, value: `${teamHurtSymbol}${this.teamHealth} :heart:` };
 
         const embed = new EmbedBuilder()
-            .setColor(NeutralEmbedColor)
+            .setColor(neutralEmbedColor)
             .setTitle(title)
             .addFields(bossField, teamField);
 
@@ -497,7 +497,7 @@ export class Game {
         });
 
         const embed = new EmbedBuilder()
-            .setColor(NeutralEmbedColor)
+            .setColor(neutralEmbedColor)
             .setTitle(title)
             .setFields(fields);
 
