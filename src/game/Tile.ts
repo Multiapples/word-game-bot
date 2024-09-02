@@ -86,6 +86,24 @@ export function tileToEmoji(tile: Tile): TileEmoji {
  * @param random A random number generator. Will be polled once.
  */
 export function randomTile(random: Random): Tile {
-    const values = Object.values(Tile).filter(value => typeof(value) === "number");
+    const values = Object.values(Tile).filter(value => typeof (value) === "number");
     return values[random.nextInt(0, values.length)];
+}
+
+/**
+ * @param random A random number generator. Will be polled once.
+ * @returns A random vowel, including 'Y'.
+ */
+export function randomVowel(random: Random): Tile {
+    const keys: CAPITAL_LETTER[] = ["A", "E", "I", "O", "U", "Y"];
+    return Tile[keys[random.nextInt(0, keys.length)]];
+}
+
+/**
+ * @param random A random number generator. Will be polled once.
+ * @returns A random consonant, including 'Y'.
+ */
+export function randomConsonant(random: Random): Tile {
+    const keys: CAPITAL_LETTER[] = ["B", "C", "D", "F", "G", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "V", "W", "X", "Y", "Z"];
+    return Tile[keys[random.nextInt(0, keys.length)]];
 }
