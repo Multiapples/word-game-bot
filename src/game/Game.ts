@@ -98,6 +98,41 @@ export class Game {
             content: `Game #${this.day}`,
         });
 
+        // Pre-generate game data.
+        const waveTiles: Tile[][] = [
+            [
+                randomConsonant(this.random),
+                randomConsonant(this.random),
+                randomConsonant(this.random),
+                randomVowel(this.random),
+                randomVowel(this.random),
+                randomVowel(this.random),
+                randomConsonant(this.random),
+                randomConsonant(this.random),
+            ],
+            [
+                randomConsonant(this.random),
+                randomConsonant(this.random),
+                randomConsonant(this.random),
+                randomConsonant(this.random),
+                randomConsonant(this.random),
+                randomVowel(this.random),
+                randomVowel(this.random),
+                Tile.WILD,
+            ],
+            [
+                randomConsonant(this.random),
+                randomConsonant(this.random),
+                randomConsonant(this.random),
+                randomVowel(this.random),
+                randomVowel(this.random),
+                Tile.WILD_VOWEL,
+                Tile.WILD_CONSONANT,
+                Tile.WILD,
+            ],
+        ];
+
+
         // Start
         await this.displayPlayers();
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -115,45 +150,11 @@ export class Game {
                 await new Promise(resolve => setTimeout(resolve, 1500));
             }
 
-            let newTiles: Tile[] = [];
-            if (wave === 1) {
-                newTiles.push(
-                    randomConsonant(this.random),
-                    randomConsonant(this.random),
-                    randomConsonant(this.random),
-                    randomVowel(this.random),
-                    randomVowel(this.random),
-                    randomVowel(this.random),
-                    randomConsonant(this.random),
-                    randomConsonant(this.random),
-                );
-            } else if (wave === 2) {
-                newTiles.push(
-                    randomConsonant(this.random),
-                    randomConsonant(this.random),
-                    randomConsonant(this.random),
-                    randomConsonant(this.random),
-                    randomConsonant(this.random),
-                    randomVowel(this.random),
-                    randomVowel(this.random),
-                    Tile.WILD,
-                );
-            } else {
-                newTiles.push(
-                    randomConsonant(this.random),
-                    randomConsonant(this.random),
-                    randomConsonant(this.random),
-                    randomVowel(this.random),
-                    randomVowel(this.random),
-                    Tile.WILD_VOWEL,
-                    Tile.WILD_CONSONANT,
-                    Tile.WILD,
-                );
-            }
+            let newTiles: Tile[] = waveTiles[wave - 1];
             this.updateTilePool([...this.tiles, ...newTiles]);
             await this.displayTiles(`Wave ${wave} | Get Ready`);
             await new Promise(resolve => setTimeout(resolve, 1000 + 1000 * wave));
-            // // / / / / await this.displayIncomingAttacks(1);
+            // await this.displayIncomingAttacks(1);
 
             this.phase = Phase[`WAVE${wave}`];
             await this.displayWaveTimer(15);
