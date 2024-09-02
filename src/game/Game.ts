@@ -273,10 +273,28 @@ export class Game {
             return;
         }
 
+        // Word is valid. Score and register it.
         this.wordsPlayed.push(word);
         const score = this.scoreWord(wordAsTiles);
         player.attributeWord(word, score);
 
+        // Update objectives.
+        let completedObjective: boolean = false;
+        for (const pair of this.currentObjectives) {
+            const [objective, completed] = pair;
+            if (completed) {
+                continue;
+            }
+            if (objective.meetsObjective(word, score)) {
+                pair[1] = true;
+                completedObjective = true;
+            }
+        }
+
+        // React feedback to message.
+        if (completedObjective) {
+            await msg.react("💥");
+        }
         const reactions = ["🔅", "☀️", "⭐", "🪐", "💫", "☄️", "🪩"];
         let scoreToDisplay = Math.min(score, Math.pow(2, reactions.length) - 1);
         while (scoreToDisplay > 0) {
@@ -382,7 +400,7 @@ export class Game {
                 const [obj, completed] = pair;
                 if (completed) {
                     return {
-                        name: `~~(-${":squid:".repeat(obj.getDamage())})~~`,
+                        name: `(${":sushi:".repeat(obj.getDamage())})`,
                         value: obj.getDescription(),
                     }
                 } else {
