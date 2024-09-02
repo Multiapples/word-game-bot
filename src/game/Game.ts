@@ -33,6 +33,8 @@ enum Phase {
 type UserId = String;
 
 export class Game {
+    static maxPlayers = 16;
+
     // Game Manager Related
     private gameManager: GameManager;
     private guild: Guild;
@@ -68,7 +70,7 @@ export class Game {
         interaction: CommandInteraction, channel: GuildTextBasedChannel,
         destroyCallback: (game: Game) => void, day: number) {
 
-        assert(users.length <= 22, "Too many players"); // Temporary; not very elegant.
+        assert(users.length <= Game.maxPlayers, "Too many players");
 
         this.gameManager = gameManager;
         this.guild = guild;
