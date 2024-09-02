@@ -1,6 +1,7 @@
 import { assert } from "../util/assert";
 import { Random } from "./Random";
 
+/** Represents an objective the players must complete to defend against enemies. */
 export interface Objective {
     /** Returns a string description for the criteria to fulfill this objective. */
     getDescription(): string;
