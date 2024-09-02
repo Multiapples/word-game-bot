@@ -1,4 +1,4 @@
-import { APIEmbedField, Collection, CommandInteraction, EmbedBuilder, Guild, GuildTextBasedChannel, Message, MessageCollector, ReadonlyCollection, User } from "discord.js";
+import { APIEmbedField, Collection, ColorResolvable, CommandInteraction, EmbedBuilder, Guild, GuildTextBasedChannel, Message, MessageCollector, ReadonlyCollection, User } from "discord.js";
 import { autoReply } from "../util/commandInteraction";
 import { wordList } from "./wordList/wordList";
 import { assert } from "../util/assert";
@@ -101,14 +101,29 @@ export class Player {
     waveDamage: number;
     /** Total damage dealt in the current game. */
     totalDamage: number;
-    /** Maps all words played by this player during this wave to their score. */
+    /** Maps all words played by this player during this wave to its score. */
     waveWords: Collection<string, number>;
+    /** Maps all words played by this player to its score. */
+    allWords: Collection<string, number>;
 
     constructor(user: User) {
         this.user = user;
         this.waveDamage = 0;
         this.totalDamage = 0;
         this.waveWords = new Collection();
+        this.allWords = new Collection();
+    }
+
+    /**
+     * Updates this player's data as if they had succesfully played the given word in game.
+     * @param word The word played.
+     * @param score The damage the word scored;
+     */
+    attributeWord(word: string, score: number): void {
+        this.waveDamage += score;
+        this.totalDamage += score;
+        this.waveWords.set(word, score);
+        this.allWords.set(word, score);
     }
 
     resetWave(): void {
@@ -169,7 +184,7 @@ export class Game {
         this.users.forEach(user => this.players.set(user.id, new Player(user)));
         this.wordsPlayed = [];
         this.teamHealth = 15;
-        this.bossHealth = 8888;
+        this.bossHealth = 60;
 
         this.collector.on('collect', msg => this.onCollectPlayerMessage(msg));
     }
@@ -187,38 +202,48 @@ export class Game {
         await this.displayBossStatus();
         await new Promise(resolve => setTimeout(resolve, 1500));
 
-        // Wave 1.
-        this.updateTilePool(this.generateTiles(8));
-        await this.displayTiles("Wave 1 | Get Ready");
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        // // / / / / await this.displayIncomingAttacks(1);
+        const waves = 3;
+        for (let wave = 1; wave <= 3; wave++) {
+            assert(wave === 1 || wave === 2 || wave === 3);
+            const finalWave = wave === waves;
 
-        this.phase = Phase.WAVE1;
-        await this.displayWaveTimer(15);
+            if (finalWave) {
+                await this.displayTitle("Final Wave", NeutralEmbedColor);
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
 
-        // Intermission 1. Display results.
-        this.phase = Phase.INTERMISSION1;
-        await this.displayWordsCrafted("Wave 1 | Words Crafted");
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        await this.displayLeaderboard("Wave 1 | Results");
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        await this.displayHurt("Wave 1 | Damage");
-        await new Promise(resolve => setTimeout(resolve, 1000));
+            this.updateTilePool([...this.tiles, ...this.generateTiles(8)]);
+            await this.displayTiles(`Wave ${wave} | Get Ready`);
+            await new Promise(resolve => setTimeout(resolve, 1000 + 1000 * wave));
+            // // / / / / await this.displayIncomingAttacks(1);
 
+            this.phase = Phase[`WAVE${wave}`];
+            await this.displayWaveTimer(15);
 
-        this.players.forEach(player => player.resetWave());
-        // Skip waves 2 and 3 for now.
+            this.phase = Phase[`INTERMISSION${wave}`];
+            await this.displayWordsCrafted(`Wave ${wave} | Words Crafted`);
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            await this.displayHurt(`Wave ${wave} | Damage`);
+            await new Promise(resolve => setTimeout(resolve, 3000));
 
-        // End. Display cumulative results.
+            if (this.teamHealth <= 0) {
+                await this.displayTitle("YOU DIED :fearful:", EnemyEmbedColor);
+                break;
+            }
+
+            await this.displayLeaderboard(`Wave ${wave} | Results`);
+            await new Promise(resolve => setTimeout(resolve, 3000));
+
+            this.players.forEach(player => player.resetWave());
+        }
+
+        this.phase = Phase.END;
         this.collector.stop();
-        await this.interaction.followUp({
-            content: "You win! (for now)",
-        });
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await this.interaction.followUp({
-            content: "Leaderboard",
-        });
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        if (this.teamHealth > 0 && this.bossHealth <= 0) {
+            await this.displayTitle("You Defeated the Boss!", PlayerEmbedColor);
+            await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+        await this.displayGameRecap("Performance");
         await this.interaction.followUp({
             content: "All done",
         });
@@ -267,16 +292,10 @@ export class Game {
 
         this.wordsPlayed.push(word);
         const score = this.scoreWord(wordAsTiles);
-        player.waveWords.set(word, score);
-        player.waveDamage += score;
-        player.totalDamage += score;
-        try {
-            await msg.react("✅")
-        } catch (err) {
-            console.error(err)
-        }
-        let scoreToDisplay = score;
+        player.attributeWord(word, score);
+
         const reactions = ["🔅", "☀️", "⭐", "🪐", "💫", "☄️", "🪩"];
+        let scoreToDisplay = Math.min(score, Math.pow(2, reactions.length) - 1);
         while (scoreToDisplay > 0) {
             let emoji = "";
             for (let index = reactions.length - 1; index >= 0; index--) {
@@ -297,12 +316,12 @@ export class Game {
 
     private async displayPlayers(): Promise<void> {
         const fields: APIEmbedField[] = [];
-        for (const player of this.players.values()) {
+        this.players.each(player => {
             fields.push({
                 name: player.user.tag,
                 value: player.user.tag,
             });
-        }
+        });
 
         const embed = new EmbedBuilder()
             .setColor(PlayerEmbedColor)
@@ -326,21 +345,21 @@ export class Game {
     }
 
     private async displayTiles(title: string): Promise<void> {
-        const fields: APIEmbedField[] = [];
         const tilePerRow = 8;
+        const rows: string[] = [];
         for (let index = 0; index < this.tiles.length; index += tilePerRow) {
-            const rowTiles = this.tiles.slice(index, Math.min(index + tilePerRow, this.tiles.length));
-            fields.push({
-                name: "_",
-                value: rowTiles.map(tileToEmoji).join(" "),
-            });
+            const rowTiles = this.tiles.slice(index, index + tilePerRow);
+            rows.push(rowTiles.map(tileToEmoji).join(" "));
         }
 
         const embed = new EmbedBuilder()
-            .setColor(NeutralEmbedColor)
+            .setColor(PlayerEmbedColor)
             .setTitle(title)
             .setDescription("Spell as many words as possible using these tiles.")
-            .addFields(fields);
+            .addFields({
+                name: "Tiles",
+                value: rows.join("\n"),
+            });
 
         await this.interaction.followUp({
             embeds: [embed],
@@ -413,12 +432,11 @@ export class Game {
 
         const fields: APIEmbedField[] = [];
         const wordsPerPlayer = 6; // This stays well under the 1024 char limit for field values.
-        for (const player of this.players.values()) {
+        this.players.each(player => {
             // Sort words from highest to lowest score.
             const wordsInOrder: [string, number][] = [...player.waveWords.entries()]
                 .sort((entryA, entryB) => entryB[1] - entryA[1]);
-            const numWordsToShow = Math.min(wordsPerPlayer, wordsInOrder.length);
-            const wordsToShow = wordsInOrder.slice(0, numWordsToShow);
+            const wordsToShow = wordsInOrder.slice(0, wordsPerPlayer);
             let lines: string[] = wordsToShow.map(entry => `**${entry[0].toUpperCase()}**: ${entry[1]} dmg`);
             if (lines.length === 0) {
                 lines = ["none"];
@@ -431,10 +449,10 @@ export class Game {
                 name: player.user.tag,
                 value: lines.join("\n"),
             });
-        }
+        });
 
         const embed = new EmbedBuilder()
-            .setColor(PlayerEmbedColor)
+            .setColor(NeutralEmbedColor)
             .setTitle(title)
             .addFields(fields);
 
@@ -454,7 +472,7 @@ export class Game {
         }));
 
         const embed = new EmbedBuilder()
-            .setColor(PlayerEmbedColor)
+            .setColor(NeutralEmbedColor)
             .setTitle(title)
             .addFields(fields);
 
@@ -482,7 +500,7 @@ export class Game {
             embeds: [embed],
         });
 
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
         this.bossHealth -= bossHurt;
         bossField.value = `${this.bossHealth} :heart: (-${bossHurt})`;
@@ -490,6 +508,43 @@ export class Game {
         teamField.value = `${this.teamHealth} :heart: (-${teamHurt})`;
         embed.setFields(bossField, teamField);
         await rep.edit({ embeds: [embed] });
+    }
+
+    async displayTitle(title: string, color: ColorResolvable | null) {
+        const embed = new EmbedBuilder()
+            .setColor(color)
+            .setTitle(title);
+
+        await this.interaction.followUp({
+            embeds: [embed],
+        });
+    }
+
+    async displayGameRecap(title: string) {
+        const fields: APIEmbedField[] = [];
+        this.players.each(player => {
+            const items: string[] = [];
+            items.push(`**Total Damage**: ${player.totalDamage} dmg`);
+            items.push("**Best Words**:");
+            const sortedWords: [string, number][] = [...player.allWords.entries()];
+            const topWords: string[] = sortedWords
+                .sort((a, b) => b[1] - a[1]).slice(0, 3)
+                .map(entry => `${entry[0].toUpperCase()} (${entry[1]})`);
+            items.push(...topWords);
+            fields.push({
+                name: player.user.tag,
+                value: items.join("\n")
+            });
+        });
+
+        const embed = new EmbedBuilder()
+            .setColor(NeutralEmbedColor)
+            .setTitle(title)
+            .setFields(fields);
+
+        await this.interaction.followUp({
+            embeds: [embed],
+        });
     }
 
     /** Stops this game gracefully. */
