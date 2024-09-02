@@ -3,7 +3,7 @@ import { assert } from "../util/assert";
 import { autoReply } from "../util/commandInteraction";
 import { GameManager } from "./GameManager";
 import { Player } from "./Player";
-import { Tile, tileToEmoji, CAPITAL_LETTER } from "./Tile";
+import { Tile, tileToEmoji, CAPITAL_LETTER, randomTile } from "./Tile";
 import { wordList } from "./wordList/wordList";
 import { Random } from "./Random";
 
@@ -485,9 +485,8 @@ export class Game {
         assert(Number.isInteger(length));
         assert(length >= 0);
         const tiles: Tile[] = [];
-        const enumOptions = (Object.keys(Tile).length / 2); // Divide by 2 because typescript enums store reverse mappings as well.
         for (let i = 0; i < length; i++) {
-            tiles.push(Math.floor(this.random.nextFloat() * enumOptions));
+            tiles.push(randomTile(this.random));
         }
         return tiles;
     }
