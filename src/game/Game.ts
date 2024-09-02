@@ -3,7 +3,7 @@ import { assert } from "../util/assert";
 import { autoReply } from "../util/commandInteraction";
 import { GameManager } from "./GameManager";
 import { Player } from "./Player";
-import { Tile, tileToEmoji, CAPITAL_LETTER, randomTile } from "./Tile";
+import { Tile, tileToEmoji, CAPITAL_LETTER, randomTile, randomConsonant, randomVowel } from "./Tile";
 import { wordList } from "./wordList/wordList";
 import { Random } from "./Random";
 import { TileCount } from "./TileCount";
@@ -112,7 +112,42 @@ export class Game {
                 await new Promise(resolve => setTimeout(resolve, 1500));
             }
 
-            this.updateTilePool([...this.tiles, ...this.generateTiles(8)]);
+            let newTiles: Tile[] = [];
+            if (wave === 1) {
+                newTiles.push(
+                    randomConsonant(this.random),
+                    randomConsonant(this.random),
+                    randomConsonant(this.random),
+                    randomVowel(this.random),
+                    randomVowel(this.random),
+                    randomVowel(this.random),
+                    randomConsonant(this.random),
+                    randomConsonant(this.random),
+                );
+            } else if (wave === 2) {
+                newTiles.push(
+                    randomConsonant(this.random),
+                    randomConsonant(this.random),
+                    randomConsonant(this.random),
+                    randomConsonant(this.random),
+                    randomConsonant(this.random),
+                    randomVowel(this.random),
+                    randomVowel(this.random),
+                    Tile.WILD,
+                );
+            } else {
+                newTiles.push(
+                    randomConsonant(this.random),
+                    randomConsonant(this.random),
+                    randomConsonant(this.random),
+                    randomVowel(this.random),
+                    randomVowel(this.random),
+                    Tile.WILD_VOWEL,
+                    Tile.WILD_CONSONANT,
+                    Tile.WILD,
+                );
+            }
+            this.updateTilePool([...this.tiles, ...newTiles]);
             await this.displayTiles(`Wave ${wave} | Get Ready`);
             await new Promise(resolve => setTimeout(resolve, 1000 + 1000 * wave));
             // // / / / / await this.displayIncomingAttacks(1);
@@ -476,20 +511,6 @@ export class Game {
         if (!this.collector.ended) {
             this.collector.stop();
         }
-    }
-
-    /**
-     * Generates an array of random tiles.
-     * Rolls {@link random}.
-     */
-    private generateTiles(length: number): Tile[] {
-        assert(Number.isInteger(length));
-        assert(length >= 0);
-        const tiles: Tile[] = [];
-        for (let i = 0; i < length; i++) {
-            tiles.push(randomTile(this.random));
-        }
-        return tiles;
     }
 
     private updateTilePool(tiles: Tile[]) {
