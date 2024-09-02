@@ -162,7 +162,6 @@ export class Game {
             await new Promise(resolve => setTimeout(resolve, 3000));
 
             if (this.teamHealth <= 0) {
-                await this.displayTitle("YOU DIED :fearful:", EnemyEmbedColor);
                 break;
             }
 
@@ -175,10 +174,14 @@ export class Game {
         // End
         this.phase = Phase.END;
         this.collector.stop();
-        if (this.teamHealth > 0 && this.bossHealth <= 0) {
-            await this.displayTitle("You Defeated the Boss!", PlayerEmbedColor);
-            await new Promise(resolve => setTimeout(resolve, 3000));
+        if (this.teamHealth <= 0) {
+            await this.displayTitle("YOU DIED :fearful:", EnemyEmbedColor);
+        } else if (this.bossHealth <= 0) {
+            await this.displayTitle("You defeated the boss! ⚔️", PlayerEmbedColor);
+        } else {
+            await this.displayTitle("The boss got away! 🐙", NeutralEmbedColor);
         }
+        await new Promise(resolve => setTimeout(resolve, 3000));
         await this.displayGameRecap("Performance");
         await this.interaction.followUp({
             content: "All done",
