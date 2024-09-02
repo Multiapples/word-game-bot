@@ -103,8 +103,8 @@ const objectivePool = [
         new LengthObjective(3, 5),
         new LengthObjective(4, 6),
         new LengthObjective(5, 7),
-        new LengthObjective(6, 8),
-        new LengthObjective(7, 9),
+        new LengthObjective(5, 8),
+        new LengthObjective(6, 9),
     ],
     [
         new DamageObjective(2, 8),
@@ -112,7 +112,6 @@ const objectivePool = [
         new DamageObjective(4, 24),
         new DamageObjective(5, 35),
         new DamageObjective(6, 48),
-        new DamageObjective(7, 63),
     ],
     [
         new PrefixObjective(2, "S"),
