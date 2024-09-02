@@ -8,6 +8,7 @@ import { wordList } from "./wordList/wordList";
 import { Random } from "./Random";
 import { TileCount } from "./TileCount";
 import { getRandomObjective, Objective } from "./Objectives";
+import { wait } from "../util/wait";
 
 
 const playerEmbedColor = 0x00ff00;
@@ -156,9 +157,9 @@ export class Game {
 
         // Start
         await this.displayPlayers();
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await wait(500);
         await this.displayBossStatus();
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await wait(1500);
 
         // Waves
         const waves = 3;
@@ -168,7 +169,7 @@ export class Game {
 
             if (finalWave) {
                 await this.displayTitle("Final Wave", neutralEmbedColor);
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                await wait(1500);
             }
 
             this.currentObjectives = objectivesPerWave[wave - 1].map(obj => [obj, false]);
@@ -177,36 +178,36 @@ export class Game {
                     `Wave ${wave} | Incoming Enemies`,
                     "Defend yourself this wave"
                 );
-                await new Promise(resolve => setTimeout(resolve, 3000));
+                await wait(3000);
             }
 
             let newTiles: Tile[] = tilesPerWave[wave - 1];
             this.updateTilePool([...this.tiles, ...newTiles]);
             await this.displayTiles(`Wave ${wave} | Get Ready`);
-            await new Promise(resolve => setTimeout(resolve, 2000 + 1000 * wave));
+            await wait(2000 + 1000 * wave);
 
             this.phase = Phase[`WAVE${wave}`];
             await this.displayWaveTimer(15);
 
             this.phase = Phase[`INTERMISSION${wave}`];
             await this.displayWordsCrafted(`Wave ${wave} | Words Crafted`);
-            await new Promise(resolve => setTimeout(resolve, 3000));
+            await wait(3000);
             if (this.currentObjectives.length > 0) {
                 await this.displayCompletedAttacks(
                     `Wave ${wave} | You blocked all the enemies`,
                     `Wave ${wave} | Some enemies got through`,
                 );
-                await new Promise(resolve => setTimeout(resolve, 3000));
+                await wait(3000);
             }
             await this.displayHurt(`Wave ${wave} | Damage`);
-            await new Promise(resolve => setTimeout(resolve, 3000));
+            await wait(3000);
 
             if (this.teamHealth <= 0) {
                 break;
             }
 
             await this.displayLeaderboard(`Wave ${wave} | Results`);
-            await new Promise(resolve => setTimeout(resolve, 3000));
+            await wait(3000);
 
             this.players.forEach(player => player.resetWave());
         }
@@ -221,7 +222,7 @@ export class Game {
         } else {
             await this.displayTitle(`The boss got away! ${bossSymbol}`, neutralEmbedColor);
         }
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await wait(3000);
         await this.displayGameRecap("Performance");
         await this.interaction.followUp({
             content: "All done",
@@ -384,10 +385,10 @@ export class Game {
             .setDescription(description);
 
         const rep: Message = await this.interaction.followUp({ embeds: [embed] });
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await wait(1000);
 
         for (let index = 0; index < fields.length; index++) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await wait(1000);
             embed.setFields(fields.slice(0, index + 1));
             await rep.edit({ embeds: [embed] });
         }
@@ -439,7 +440,7 @@ export class Game {
 
         let timeWarning: Message | null = null;
         while (secondsLeft > 0) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await wait(1000);
             secondsLeft--;
 
             if (secondsLeft % 5 === 0) {
@@ -551,7 +552,7 @@ export class Game {
             embeds: [embed],
         });
 
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await wait(1500);
 
         this.bossHealth -= bossHurt;
         bossField.value = `${this.bossHealth} :heart: (-${bossHurt})`;
