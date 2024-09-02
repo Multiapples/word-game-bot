@@ -1,3 +1,4 @@
+import { Collection } from "discord.js";
 import { assert } from "../util/assert";
 import { Random } from "./Random";
 
@@ -98,7 +99,7 @@ class DoubleConsonantObjective extends BaseObjective implements Objective {
     }
 }
 
-const objectivePool = [
+const objectivePool: Objective[][] = [
     [
         new LengthObjective(2, 4),
         new LengthObjective(3, 5),
@@ -136,13 +137,23 @@ const objectivePool = [
     ],
 ];
 
+const objectivePoolsByDamage = new Collection<number, Objective[][]>();
+for (let damage = 2; damage <= 6; damage++) {
+    const objectives: Objective[][] = objectivePool
+        .map(pool => pool.filter(obj => obj.getDamage() === damage))
+        .filter(pool => pool.length > 0);
+    objectivePoolsByDamage.set(damage, objectives);
+}
+
 /**
  * Returns a random object with the specified damage.
  * @param damage The amount of damage the objective will have.
  * @param random A random number generator. It will be polled twice.
  */
-export function getRandomObjective(damage: 2 | 3 | 4 | 5 | 6 | 7, random: Random): Objective {
-    const pool = objectivePool[random.nextInt(0, objectivePool.length)];
+export function getRandomObjective(damage: 2 | 3 | 4 | 5 | 6, random: Random): Objective {
+    const pools = objectivePoolsByDamage.get(damage);
+    assert(pools !== undefined);
+    const pool = pools[random.nextInt(0, pools.length)];
     const objective = pool[random.nextInt(0, pool.length)];
     return objective;
 }
