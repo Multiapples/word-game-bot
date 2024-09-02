@@ -523,7 +523,10 @@ export class Game {
         });
     }
 
-    /** Outputs an embed displaying damage dealt after a wave. */
+    /**
+     * Calculates and deals damage to the team and boss, and
+     * outputs an embed displaying damage dealt after a wave.
+     */
     private async displayHurt(title: string): Promise<void> {
         let bossHurt = 0;
         this.players.each(player => bossHurt += player.waveDamage);
@@ -531,6 +534,11 @@ export class Game {
         const bossField = { name: `Boss${bossSymbol}`, value: `${this.bossHealth} ${bossHeartSymbol}` };
 
         let teamHurt = 0;
+        for (const [objective, completed] of this.currentObjectives) {
+            if (!completed) {
+                teamHurt += objective.getDamage();
+            }
+        }
         const teamHeartSymbol = teamHurt > 0 ? ":boom:" : ":heart:";
         const teamField = { name: `Team${teamSymbol}`, value: `${this.teamHealth} ${teamHeartSymbol}` };
 
