@@ -47,11 +47,12 @@ export class Game {
     private phase: Phase;
     private tiles: Tile[];
     private tileCount: TileCount;
-    private currentObjectives: Objective[];
     private players: Collection<UserId, Player>;
     private wordsPlayed: string[];
     private teamHealth: number;
     private bossHealth: number;
+    /** A list of objectives and whether they are completed. */
+    private currentObjectives: [Objective, boolean][];
 
     /**
      * @param gameManager The game manager responsible for this game.
@@ -170,7 +171,7 @@ export class Game {
                 await new Promise(resolve => setTimeout(resolve, 1500));
             }
 
-            this.currentObjectives = objectivesPerWave[wave - 1];
+            this.currentObjectives = objectivesPerWave[wave - 1].map(obj => [obj, false]);
             if (this.currentObjectives.length > 0) {
                 await this.displayIncomingAttacks(
                     `Wave ${wave} | Incoming Enemies`,
@@ -347,10 +348,20 @@ export class Game {
     /** Outputs an embed of incoming enemy attack objectives. */
     private async displayIncomingAttacks(title: string, description: string): Promise<void> {
         const fields: APIEmbedField[] = this.currentObjectives
-            .map(obj => ({
-                name: `(-${obj.getDamage()}${":squid:".repeat(obj.getDamage())})`,
-                value: obj.getDescription(),
-            }));
+            .map(pair => {
+                const [obj, completed] = pair;
+                if (completed) {
+                    return {
+                        name: `~~(-${":squid:".repeat(obj.getDamage())})~~`,
+                        value: obj.getDescription(),
+                    }
+                } else {
+                    return {
+                        name: `(-${obj.getDamage()}${":squid:".repeat(obj.getDamage())})`,
+                        value: obj.getDescription(),
+                    }
+                }
+            });
 
         const embed = new EmbedBuilder()
             .setColor(enemyEmbedColor)
