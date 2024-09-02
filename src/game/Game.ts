@@ -13,6 +13,9 @@ const PlayerEmbedColor = 0x00ff00;
 const EnemyEmbedColor = 0xff0000;
 const NeutralEmbedColor = 0xffff80;
 
+const bossSymbol = "🐙";
+const teamSymbol = "⚔️";
+
 /** The phases of a game */
 enum Phase {
     START,
@@ -177,9 +180,9 @@ export class Game {
         if (this.teamHealth <= 0) {
             await this.displayTitle("YOU DIED :fearful:", EnemyEmbedColor);
         } else if (this.bossHealth <= 0) {
-            await this.displayTitle("You defeated the boss! ⚔️", PlayerEmbedColor);
+            await this.displayTitle(`You defeated the boss! ${teamSymbol}`, PlayerEmbedColor);
         } else {
-            await this.displayTitle("The boss got away! 🐙", NeutralEmbedColor);
+            await this.displayTitle(`The boss got away! ${bossSymbol}`, NeutralEmbedColor);
         }
         await new Promise(resolve => setTimeout(resolve, 3000));
         await this.displayGameRecap("Performance");
@@ -269,7 +272,7 @@ export class Game {
 
         const embed = new EmbedBuilder()
             .setColor(PlayerEmbedColor)
-            .setTitle("Team⚔️")
+            .setTitle(`Team${teamSymbol}`)
             .addFields(fields);
 
         await this.interaction.followUp({
@@ -281,7 +284,7 @@ export class Game {
     private async displayBossStatus(): Promise<void> {
         const embed = new EmbedBuilder()
             .setColor(EnemyEmbedColor)
-            .setTitle("Boss🐙")
+            .setTitle(`Boss${bossSymbol}`)
             .addFields({ name: "Health", value: `${this.bossHealth}:heart:` });
 
         await this.interaction.followUp({
@@ -436,11 +439,11 @@ export class Game {
         let bossHurt = 0;
         this.players.each(player => bossHurt += player.waveDamage);
         const bossHurtSymbol = bossHurt > 0 ? ":boom:" : "";
-        const bossField = { name: "Boss🐙", value: `${bossHurtSymbol}${this.bossHealth} :heart:` };
+        const bossField = { name: `Boss${bossSymbol}`, value: `${bossHurtSymbol}${this.bossHealth} :heart:` };
 
         let teamHurt = 0;
         const teamHurtSymbol = teamHurt > 0 ? ":boom:" : "";
-        const teamField = { name: "Team⚔️", value: `${teamHurtSymbol}${this.teamHealth} :heart:` };
+        const teamField = { name: `Team${teamSymbol}`, value: `${teamHurtSymbol}${this.teamHealth} :heart:` };
 
         const embed = new EmbedBuilder()
             .setColor(NeutralEmbedColor)
