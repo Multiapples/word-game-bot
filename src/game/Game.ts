@@ -492,44 +492,9 @@ export class Game {
         return tiles;
     }
 
-    /**
-     * Returns a collection with the number of times each tile appears in the received
-     * array. Tiles that never appear are assigned a value of 0 in the collection.
-     */
-    private generateTileCount(tiles: Tile[]): Collection<Tile, number> {
-        const count = new Collection<Tile, number>();
-        for (const tile in Tile) {
-            if (isNaN(Number(tile))) {
-                continue;
-            }
-            count.ensure(Number(tile), () => 0);
-        }
-        for (const tile of tiles) {
-            count.set(tile, count.get(tile)! + 1);
-        }
-        return count;
-    }
-
     private updateTilePool(tiles: Tile[]) {
         this.tiles = tiles;
         this.tileCount = new TileCount(tiles);
-    }
-
-    /**
-     * Decrements a value from a tile count collection.
-     * @param collection A collection holding an amount of each tile.
-     * @param tile The tile to decrement. The collection must have a value for this tile.
-     * @returns `true` if value was decremented and `false` otherwise.
-     */
-    private decrementTileCount(collection: Collection<Tile, number>, tile: Tile): boolean {
-        const count: Tile | undefined = collection.get(tile);
-        assert(count !== undefined, "Tile count collection does not have value for tile.")
-        if (count > 0) {
-            collection.set(tile, count - 1);
-            return true;
-        } else {
-            return false;
-        }
     }
 
     /**
