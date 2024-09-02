@@ -94,7 +94,7 @@ class DoubleConsonantObjective extends BaseObjective implements Objective {
         return `Spell a word with doubled consonants`;
     }
     meetsObjective(word: string, score: number): boolean {
-        const doubleLettersRegex = /([A-Z])\1/
+        const doubleLettersRegex = /([a-z])\1/
         return doubleLettersRegex.test(word);
     }
 }
