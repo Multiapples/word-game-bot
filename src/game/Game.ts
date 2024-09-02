@@ -6,6 +6,7 @@ import { Player } from "./Player";
 import { Tile, tileToEmoji, CAPITAL_LETTER, randomTile } from "./Tile";
 import { wordList } from "./wordList/wordList";
 import { Random } from "./Random";
+import { TileCount } from "./TileCount";
 
 
 const PlayerEmbedColor = 0x00ff00;
@@ -41,7 +42,7 @@ export class Game {
     private random: Random;
     private phase: Phase;
     private tiles: Tile[];
-    private tileCount: Collection<Tile, number>;
+    private tileCount: TileCount;
     private players: Collection<UserId, Player>;
     private wordsPlayed: string[];
     private teamHealth: number;
@@ -77,7 +78,7 @@ export class Game {
         this.random = new Random(day);
         this.phase = Phase.START;
         this.tiles = [];
-        this.tileCount = this.generateTileCount(this.tiles);
+        this.tileCount = new TileCount(this.tiles);
         this.players = new Collection();
         this.users.forEach(user => this.players.set(user.id, new Player(user)));
         this.wordsPlayed = [];
@@ -511,7 +512,7 @@ export class Game {
 
     private updateTilePool(tiles: Tile[]) {
         this.tiles = tiles;
-        this.tileCount = this.generateTileCount(tiles);
+        this.tileCount = new TileCount(tiles);
     }
 
     /**
@@ -539,7 +540,7 @@ export class Game {
      * @returns An array of tiles. If the word cannot be spelt with the given tiles, null
      *     is returned instead.
      */
-    private wordToTiles(word: string, tileCount: Collection<Tile, number>): Tile[] | null {
+    private wordToTiles(word: string, tileCount: TileCount): Tile[] | null {
         // Check that the word is not an empty string.
         if (word.length === 0) {
             return null;
@@ -551,11 +552,11 @@ export class Game {
             return null;
         }
         // Fill the word with regular tiles.
-        const counts = tileCount.clone();
+        const counts = new TileCount([], tileCount);
         const wordAsTiles: (Tile | null)[] = [];
         for (const char of word as unknown as CAPITAL_LETTER[]) {
             const tile = Tile[char];
-            if (this.decrementTileCount(counts, tile)) {
+            if (counts.decrement(tile)) {
                 wordAsTiles.push(tile);
             } else {
                 wordAsTiles.push(null);
@@ -568,17 +569,17 @@ export class Game {
                 continue;
             }
             if ("AEIOU".includes(char)) {
-                if (this.decrementTileCount(counts, Tile.WILD_VOWEL)) {
+                if (counts.decrement(Tile.WILD_VOWEL)) {
                     wordAsTiles[index] = Tile.WILD_VOWEL;
-                } else if (this.decrementTileCount(counts, Tile.WILD)) {
+                } else if (counts.decrement(Tile.WILD)) {
                     wordAsTiles[index] = Tile.WILD;
                 } else {
                     return null; // Cannot spell word.
                 }
             } else if ("BCDFGHJKLMNPQRSTVWXZ".includes(char)) {
-                if (this.decrementTileCount(counts, Tile.WILD_CONSONANT)) {
+                if (counts.decrement(Tile.WILD_CONSONANT)) {
                     wordAsTiles[index] = Tile.WILD_CONSONANT;
-                } else if (this.decrementTileCount(counts, Tile.WILD)) {
+                } else if (counts.decrement(Tile.WILD)) {
                     wordAsTiles[index] = Tile.WILD;
                 } else {
                     return null; // Cannot spell word.
@@ -591,11 +592,11 @@ export class Game {
             if (wordAsTiles[index] !== null || char !== "Y") {
                 continue;
             }
-            if (this.decrementTileCount(counts, Tile.WILD_VOWEL)) {
+            if (counts.decrement(Tile.WILD_VOWEL)) {
                 wordAsTiles[index] = Tile.WILD_VOWEL;
-            } else if (this.decrementTileCount(counts, Tile.WILD_CONSONANT)) {
+            } else if (counts.decrement(Tile.WILD_CONSONANT)) {
                 wordAsTiles[index] = Tile.WILD_CONSONANT;
-            } else if (this.decrementTileCount(counts, Tile.WILD)) {
+            } else if (counts.decrement(Tile.WILD)) {
                 wordAsTiles[index] = Tile.WILD;
             } else {
                 return null; // Cannot spell word.
