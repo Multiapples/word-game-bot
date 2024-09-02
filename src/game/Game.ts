@@ -7,6 +7,7 @@ import { Tile, tileToEmoji, CAPITAL_LETTER, randomTile, randomConsonant, randomV
 import { wordList } from "./wordList/wordList";
 import { Random } from "./Random";
 import { TileCount } from "./TileCount";
+import { getRandomObjective, Objective } from "./Objectives";
 
 
 const playerEmbedColor = 0x00ff00;
@@ -129,6 +130,23 @@ export class Game {
                 Tile.WILD_VOWEL,
                 Tile.WILD_CONSONANT,
                 Tile.WILD,
+            ],
+        ];
+        const objectives: Objective[][] = [
+            [],
+            [
+                getRandomObjective(5, this.random),
+                getRandomObjective(4, this.random),
+                getRandomObjective(3, this.random),
+                getRandomObjective(2, this.random),
+                getRandomObjective(2, this.random),
+            ],
+            [
+                getRandomObjective(6, this.random),
+                getRandomObjective(5, this.random),
+                getRandomObjective(4, this.random),
+                getRandomObjective(3, this.random),
+                getRandomObjective(3, this.random),
             ],
         ];
 
