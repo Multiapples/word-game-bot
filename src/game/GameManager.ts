@@ -182,9 +182,9 @@ export class Game {
         });
 
         // Start game.
-        await this.displayPlayers("Players");
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        await this.displayBossStatus("Boss");
+        await this.displayPlayers();
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await this.displayBossStatus();
         await new Promise(resolve => setTimeout(resolve, 1500));
 
         // Wave 1.
@@ -194,7 +194,7 @@ export class Game {
         // // / / / / await this.displayIncomingAttacks(1);
 
         this.phase = Phase.WAVE1;
-        await this.displayWaveTimer(30);
+        await this.displayWaveTimer(15);
 
         // Intermission 1. Display results.
         this.phase = Phase.INTERMISSION1;
@@ -202,10 +202,7 @@ export class Game {
         await new Promise(resolve => setTimeout(resolve, 1500));
         await this.displayLeaderboard("Wave 1 | Results");
         await new Promise(resolve => setTimeout(resolve, 1500));
-
-        await this.interaction.followUp({
-            content: "💥🐙❗",
-        });
+        await this.displayHurt("Wave 1 | Damage");
         await new Promise(resolve => setTimeout(resolve, 1000));
 
 
@@ -298,7 +295,7 @@ export class Game {
         }
     }
 
-    private async displayPlayers(title: string): Promise<void> {
+    private async displayPlayers(): Promise<void> {
         const fields: APIEmbedField[] = [];
         for (const player of this.players.values()) {
             fields.push({
@@ -309,7 +306,7 @@ export class Game {
 
         const embed = new EmbedBuilder()
             .setColor(PlayerEmbedColor)
-            .setTitle(title)
+            .setTitle("Team⚔️")
             .addFields(fields);
 
         await this.interaction.followUp({
@@ -317,10 +314,10 @@ export class Game {
         });
     }
 
-    private async displayBossStatus(title: string): Promise<void> {
+    private async displayBossStatus(): Promise<void> {
         const embed = new EmbedBuilder()
             .setColor(EnemyEmbedColor)
-            .setTitle(title)
+            .setTitle("Boss🐙")
             .addFields({ name: "Health", value: `${this.bossHealth}:heart:` });
 
         await this.interaction.followUp({
@@ -464,6 +461,35 @@ export class Game {
         await this.interaction.followUp({
             embeds: [embed],
         });
+    }
+
+    private async displayHurt(title: string) {
+        let bossHurt = 0;
+        this.players.each(player => bossHurt += player.waveDamage);
+        const bossHurtSymbol = bossHurt > 0 ? ":boom:" : "";
+        const bossField = { name: "Boss🐙", value: `${bossHurtSymbol}${this.bossHealth} :heart:` };
+
+        let teamHurt = 0;
+        const teamHurtSymbol = teamHurt > 0 ? ":boom:" : "";
+        const teamField = { name: "Team⚔️", value: `${teamHurtSymbol}${this.teamHealth} :heart:` };
+
+        const embed = new EmbedBuilder()
+            .setColor(NeutralEmbedColor)
+            .setTitle(title)
+            .addFields(bossField, teamField);
+
+        const rep: Message = await this.interaction.followUp({
+            embeds: [embed],
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        this.bossHealth -= bossHurt;
+        bossField.value = `${this.bossHealth} :heart: (-${bossHurt})`;
+        this.teamHealth -= teamHurt;
+        teamField.value = `${this.teamHealth} :heart: (-${teamHurt})`;
+        embed.setFields(bossField, teamField);
+        await rep.edit({ embeds: [embed] });
     }
 
     /** Stops this game gracefully. */
