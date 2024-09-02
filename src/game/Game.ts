@@ -47,6 +47,7 @@ export class Game {
     private phase: Phase;
     private tiles: Tile[];
     private tileCount: TileCount;
+    private currentObjectives: Objective[];
     private players: Collection<UserId, Player>;
     private wordsPlayed: string[];
     private teamHealth: number;
@@ -83,6 +84,7 @@ export class Game {
         this.phase = Phase.START;
         this.tiles = [];
         this.tileCount = new TileCount(this.tiles);
+        this.currentObjectives = [];
         this.players = new Collection();
         this.users.forEach(user => this.players.set(user.id, new Player(user)));
         this.wordsPlayed = [];
@@ -100,7 +102,7 @@ export class Game {
         });
 
         // Pre-generate game data.
-        const waveTiles: Tile[][] = [
+        const tilesPerWave: Tile[][] = [
             [
                 randomConsonant(this.random),
                 randomConsonant(this.random),
@@ -132,7 +134,7 @@ export class Game {
                 Tile.WILD,
             ],
         ];
-        const objectives: Objective[][] = [
+        const objectivesPerWave: Objective[][] = [
             [],
             [
                 getRandomObjective(5, this.random),
@@ -168,11 +170,19 @@ export class Game {
                 await new Promise(resolve => setTimeout(resolve, 1500));
             }
 
-            let newTiles: Tile[] = waveTiles[wave - 1];
+            this.currentObjectives = objectivesPerWave[wave - 1];
+            if (this.currentObjectives.length > 0) {
+                await this.displayIncomingAttacks(
+                    `Wave ${wave} | Incoming Enemies`,
+                    "Defend yourself this wave"
+                );
+                await new Promise(resolve => setTimeout(resolve, 3000));
+            }
+
+            let newTiles: Tile[] = tilesPerWave[wave - 1];
             this.updateTilePool([...this.tiles, ...newTiles]);
             await this.displayTiles(`Wave ${wave} | Get Ready`);
             await new Promise(resolve => setTimeout(resolve, 1000 + 1000 * wave));
-            // await this.displayIncomingAttacks(1);
 
             this.phase = Phase[`WAVE${wave}`];
             await this.displayWaveTimer(15);
@@ -336,18 +346,25 @@ export class Game {
 
     /** Outputs an embed of incoming enemy attack objectives. */
     private async displayIncomingAttacks(title: string, description: string): Promise<void> {
+        const fields: APIEmbedField[] = this.currentObjectives
+            .map(obj => ({
+                name: `(-${obj.getDamage()}${":squid:".repeat(obj.getDamage())})`,
+                value: obj.getDescription(),
+            }));
+
         const embed = new EmbedBuilder()
             .setColor(enemyEmbedColor)
             .setTitle(title)
-            .setDescription(description)
-            .addFields(
-                { name: ":goblin:", value: "Curse of ra!" },
-                { name: ":goblin:", value: "Curse of ra!" },
-                { name: ":goblin:", value: "Curse of ra!" },
-            );
-        await this.interaction.followUp({
-            embeds: [embed],
-        });
+            .setDescription(description);
+
+        const rep: Message = await this.interaction.followUp({ embeds: [embed] });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        for (let index = 0; index < fields.length; index++) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            embed.setFields(fields.slice(0, index + 1));
+            await rep.edit({ embeds: [embed] });
+        }
     }
 
     /** Outputs an embed displaying a timer and updates that timer until it expires. */
