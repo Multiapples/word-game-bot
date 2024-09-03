@@ -124,10 +124,10 @@ export class Game {
                 randomConsonant(this.random),
                 randomConsonant(this.random),
                 randomConsonant(this.random),
-                randomConsonant(this.random),
-                randomConsonant(this.random),
                 randomVowel(this.random),
                 randomVowel(this.random),
+                randomVowel(this.random),
+                randomConsonant(this.random),
                 Tile.WILD,
             ],
             [
@@ -136,8 +136,8 @@ export class Game {
                 randomConsonant(this.random),
                 randomVowel(this.random),
                 randomVowel(this.random),
-                Tile.WILD_VOWEL,
-                Tile.WILD_CONSONANT,
+                randomConsonant(this.random),
+                randomConsonant(this.random),
                 Tile.WILD,
             ],
         ];
