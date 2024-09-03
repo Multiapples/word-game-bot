@@ -225,7 +225,7 @@ export class Game {
             await this.displayTitle(`The boss got away! ${bossSymbol}`, neutralEmbedColor);
         }
         await wait(3000);
-        await this.displayGameRecap("Performance");
+        await this.displayGameRecap("End of Game | Performance");
         await this.interaction.followUp({
             content: "All done",
         });
@@ -290,6 +290,7 @@ export class Game {
             }
             if (objective.meetsObjective(word, score)) {
                 pair[1] = true;
+                player.attributeObjective(objective);
                 completedObjective = true;
             }
         }
@@ -583,7 +584,10 @@ export class Game {
             .map(entry => entry[1]);
         playersInOrder.forEach(player => {
             const items: string[] = [];
+            items.push(`**Total Words**: ${player.allWords.size} words`);
             items.push(`**Total Damage**: ${player.totalDamage} dmg`);
+            items.push(`**Total Enemies Blocked**: ${player.totalObjectivesCompleted}`);
+            items.push(`**Total Damage Blocked**: ${player.totalDefended}`);
             items.push("**Best Words**:");
             const sortedWords: [string, number][] = [...player.allWords.entries()];
             const topWords: string[] = sortedWords
