@@ -1,5 +1,6 @@
 #  Word Game
 
+This is a word game that runs a Discord bot application.
 
 ## Acknowledgements
 
