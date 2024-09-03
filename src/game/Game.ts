@@ -33,7 +33,7 @@ enum Phase {
 type UserId = String;
 
 export class Game {
-    static maxPlayers = 16;
+    static readonly maxPlayers = 16;
 
     // Game Manager Related
     private gameManager: GameManager;
