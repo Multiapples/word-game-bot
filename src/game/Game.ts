@@ -1,4 +1,4 @@
-import { Guild, User, CommandInteraction, GuildTextBasedChannel, MessageCollector, Collection, Message, APIEmbedField, EmbedBuilder, ColorResolvable, ChatInputCommandInteraction } from "discord.js";
+import { Guild, User, CommandInteraction, GuildTextBasedChannel, MessageCollector, Collection, Message, APIEmbedField, EmbedBuilder, ColorResolvable, ChatInputCommandInteraction, Embed } from "discord.js";
 import { assert } from "../util/assert";
 import { autoReply } from "../util/commandInteraction";
 import { GameManager } from "./GameManager";
@@ -102,7 +102,10 @@ export class Game {
     async run(): Promise<void> {
         // Ensure the interaction has an initial response.
         await autoReply(this.interaction, {
-            content: `Game #${this.day}`,
+            embeds: [new EmbedBuilder()
+                .setColor(playerEmbedColor)
+                .setTitle(`Game #${this.day}`)
+                .setTimestamp()],
         });
 
         // Pre-generate game data.
@@ -178,7 +181,7 @@ export class Game {
             if (this.currentObjectives.length > 0) {
                 await this.displayIncomingAttacks(
                     `Wave ${wave} | Incoming Enemies`,
-                    "Defend yourself this wave"
+                    "Defend yourself against these enemies, but keep damaging that boss"
                 );
                 await wait(3000);
             }
@@ -192,23 +195,23 @@ export class Game {
             await this.displayWaveTimer(timePerWave[wave - 1]);
 
             this.phase = Phase[`INTERMISSION${wave}`];
-            await this.displayWordsCrafted(`Wave ${wave} | Words Crafted`);
+            await this.displayWordsCrafted(`End of Wave ${wave} | Words Crafted`);
             await wait(3000);
             if (this.currentObjectives.length > 0) {
                 await this.displayCompletedAttacks(
-                    `Wave ${wave} | You blocked all the enemies`,
-                    `Wave ${wave} | Some enemies got through`,
+                    `End of Wave ${wave} | You blocked all the enemies`,
+                    `End of Wave ${wave} | Some enemies got through`,
                 );
                 await wait(3000);
             }
-            await this.displayHurt(`Wave ${wave} | Damage`);
+            await this.displayHurt(`End of Wave ${wave} | Damage`);
             await wait(3000);
 
             if (this.teamHealth <= 0) {
                 break;
             }
 
-            await this.displayLeaderboard(`Wave ${wave} | Results`);
+            await this.displayLeaderboard(`End of Wave ${wave} | Results`);
             await wait(3000);
 
             this.players.forEach(player => player.resetWave());
