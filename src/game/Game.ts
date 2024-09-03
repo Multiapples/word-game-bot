@@ -93,7 +93,7 @@ export class Game {
         this.users.forEach(user => this.players.set(user.id, new Player(user)));
         this.wordsPlayed = [];
         this.teamHealth = 15;
-        this.bossHealth = 60;
+        this.bossHealth = 500;
 
         this.collector.on('collect', msg => this.onCollectPlayerMessage(msg));
     }
@@ -155,7 +155,7 @@ export class Game {
                 getRandomObjective(3, this.random),
             ],
         ];
-
+        const timePerWave = [30, 45, 60];
 
         // Start
         await this.displayPlayers();
@@ -189,7 +189,7 @@ export class Game {
             await wait(2000 + 1000 * wave);
 
             this.phase = Phase[`WAVE${wave}`];
-            await this.displayWaveTimer(15);
+            await this.displayWaveTimer(timePerWave[wave - 1]);
 
             this.phase = Phase[`INTERMISSION${wave}`];
             await this.displayWordsCrafted(`Wave ${wave} | Words Crafted`);
@@ -226,9 +226,6 @@ export class Game {
         }
         await wait(3000);
         await this.displayGameRecap("End of Game | Performance");
-        await this.interaction.followUp({
-            content: "All done",
-        });
 
         this.stop();
     }
