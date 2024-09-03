@@ -11,9 +11,9 @@ import { getRandomObjective, Objective } from "./Objectives";
 import { wait } from "../util/wait";
 
 
-const playerEmbedColor = 0x00ff00;
-const enemyEmbedColor = 0xff0000;
-const neutralEmbedColor = 0xffff80;
+const playerEmbedColor = 0x75ff9d;
+const enemyEmbedColor = 0xff7575;
+const accentEmbedColor = 0xe0e0ed;
 
 const bossSymbol = "🐙";
 const teamSymbol = "⚔️";
@@ -103,7 +103,7 @@ export class Game {
         // Ensure the interaction has an initial response.
         await autoReply(this.interaction, {
             embeds: [new EmbedBuilder()
-                .setColor(playerEmbedColor)
+                .setColor(accentEmbedColor)
                 .setTitle(`Game #${this.day}`)
                 .setTimestamp()],
         });
@@ -173,7 +173,7 @@ export class Game {
             const finalWave = wave === waves;
 
             if (finalWave) {
-                await this.displayTitle("Final Wave", neutralEmbedColor);
+                await this.displayTitle("Final Wave", accentEmbedColor);
                 await wait(1500);
             }
 
@@ -225,7 +225,7 @@ export class Game {
         } else if (this.bossHealth <= 0) {
             await this.displayTitle(`You defeated the boss! ${teamSymbol}`, playerEmbedColor);
         } else {
-            await this.displayTitle(`The boss got away! ${bossSymbol}`, neutralEmbedColor);
+            await this.displayTitle(`The boss got away! ${bossSymbol}`, null);
         }
         await wait(3000);
         await this.displayGameRecap("End of Game | Performance");
@@ -297,7 +297,7 @@ export class Game {
 
         // React feedback to message.
         if (completedObjective) {
-            await msg.react("💥");
+            await msg.react("🍣");
         }
         const reactions = ["🔅", "☀️", "⭐", "🪐", "💫", "☄️", "🪩"];
         let scoreToDisplay = Math.min(score, Math.pow(2, reactions.length) - 1);
@@ -321,18 +321,9 @@ export class Game {
 
     /** Outputs an embed with the list of players. */
     private async displayPlayers(): Promise<void> {
-        const fields: APIEmbedField[] = [];
-        this.players.each(player => {
-            fields.push({
-                name: player.user.tag,
-                value: player.user.tag,
-            });
-        });
-
         const embed = new EmbedBuilder()
-            .setColor(playerEmbedColor)
             .setTitle(`Team${teamSymbol}`)
-            .addFields(fields);
+            .setDescription(this.users.map(user => user.tag).join("\n"));
 
         await this.interaction.followUp({
             embeds: [embed],
@@ -342,7 +333,6 @@ export class Game {
     /** Outputs an embed of the boss health. */
     private async displayBossStatus(): Promise<void> {
         const embed = new EmbedBuilder()
-            .setColor(enemyEmbedColor)
             .setTitle(`Boss${bossSymbol}`)
             .addFields({ name: "Health", value: `${this.bossHealth}:heart:` });
 
@@ -433,7 +423,6 @@ export class Game {
         const message = "Go!"
         const timerSymbol = ":white_large_square:";
         const embed = new EmbedBuilder()
-            .setColor(neutralEmbedColor)
             .setTitle(message)
             .setDescription(`:clock11:${timerSymbol.repeat(secondsLeft / 5)}`);
 
@@ -497,7 +486,6 @@ export class Game {
         });
 
         const embed = new EmbedBuilder()
-            .setColor(neutralEmbedColor)
             .setTitle(title)
             .addFields(fields);
 
@@ -518,7 +506,6 @@ export class Game {
         }));
 
         const embed = new EmbedBuilder()
-            .setColor(neutralEmbedColor)
             .setTitle(title)
             .addFields(fields);
 
@@ -547,7 +534,6 @@ export class Game {
         const teamField = { name: `Team${teamSymbol}`, value: `${this.teamHealth} ${teamHeartSymbol}` };
 
         const embed = new EmbedBuilder()
-            .setColor(neutralEmbedColor)
             .setTitle(title)
             .addFields(bossField, teamField);
 
@@ -601,7 +587,7 @@ export class Game {
         });
 
         const embed = new EmbedBuilder()
-            .setColor(neutralEmbedColor)
+            .setColor(accentEmbedColor)
             .setTitle(title)
             .setFields(fields);
 
