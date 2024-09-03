@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, CommandInteraction, EmbedBuilder } from "discord.js";
+import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } from "discord.js";
 import { Command } from "./commandInterface";
 
 export class PingCommand implements Command {
@@ -7,7 +7,7 @@ export class PingCommand implements Command {
         .setName("ping")
         .setDescription("Test latency");
 
-    async execute(interaction: CommandInteraction): Promise<void> {
+    async execute(interaction: ChatInputCommandInteraction): Promise<void> {
         const sent: number = interaction.createdTimestamp;
         const reply = await interaction.reply({
             embeds: [

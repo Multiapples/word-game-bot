@@ -1,4 +1,4 @@
-import { Collection, Guild, User, CommandInteraction } from "discord.js";
+import { Collection, Guild, User, ChatInputCommandInteraction } from "discord.js";
 import { autoReply } from "../util/commandInteraction";
 import { Game } from "./Game";
 
@@ -18,7 +18,7 @@ export class GameManager {
      * If any of the members are already in a game, replies to the interaction with an error.
      * Otherwise, starts the game immediately.
      */
-    async tryNewGame(guild: Guild, players: User[], interaction: CommandInteraction): Promise<void> {
+    async tryNewGame(guild: Guild, players: User[], interaction: ChatInputCommandInteraction): Promise<void> {
         // Ensure interaction is coming from a guild text channel.
         if (interaction.channel === null || interaction.channel.isDMBased() || !interaction.channel.isTextBased()) {
             await autoReply(interaction, {

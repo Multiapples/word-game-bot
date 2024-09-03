@@ -1,9 +1,9 @@
-import { Guild, User, CommandInteraction, GuildTextBasedChannel, MessageCollector, Collection, Message, APIEmbedField, EmbedBuilder, ColorResolvable } from "discord.js";
+import { Guild, User, CommandInteraction, GuildTextBasedChannel, MessageCollector, Collection, Message, APIEmbedField, EmbedBuilder, ColorResolvable, ChatInputCommandInteraction } from "discord.js";
 import { assert } from "../util/assert";
 import { autoReply } from "../util/commandInteraction";
 import { GameManager } from "./GameManager";
 import { Player } from "./Player";
-import { Tile, tileToEmoji, CAPITAL_LETTER, randomTile, randomConsonant, randomVowel } from "./Tile";
+import { Tile, tileToEmoji, CAPITAL_LETTER, randomConsonant, randomVowel } from "./Tile";
 import { wordList } from "./wordList/wordList";
 import { Random } from "./Random";
 import { TileCount } from "./TileCount";
@@ -39,7 +39,7 @@ export class Game {
     private gameManager: GameManager;
     private guild: Guild;
     private users: User[];
-    private interaction: CommandInteraction;
+    private interaction: ChatInputCommandInteraction;
     private channel: GuildTextBasedChannel;
     private collector: MessageCollector;
     private destroyCallback: (game: Game) => void;
@@ -67,7 +67,7 @@ export class Game {
      * @param day An integer that determines which unique random game to play.
      */
     constructor(gameManager: GameManager, guild: Guild, users: User[],
-        interaction: CommandInteraction, channel: GuildTextBasedChannel,
+        interaction: ChatInputCommandInteraction, channel: GuildTextBasedChannel,
         destroyCallback: (game: Game) => void, day: number) {
 
         assert(users.length <= Game.maxPlayers, "Too many players");

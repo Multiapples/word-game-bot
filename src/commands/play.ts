@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, CommandInteraction, User, Guild } from "discord.js";
+import { SlashCommandBuilder, User, Guild, ChatInputCommandInteraction } from "discord.js";
 import { Command } from "./commandInterface";
 import { getGameManager } from "../game/GameManager";
 
@@ -8,7 +8,7 @@ export class PlayCommand implements Command {
         .setName("play")
         .setDescription("Starts a game");
 
-    async execute(interaction: CommandInteraction): Promise<void> {
+    async execute(interaction: ChatInputCommandInteraction): Promise<void> {
         if (interaction.guild === null) {
             await interaction.reply({
                 content: "This command can only be used in a server.",
