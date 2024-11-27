@@ -228,7 +228,7 @@ export class Game {
             await this.displayTitle(`The boss got away! ${bossSymbol}`, null);
         }
         await wait(3000);
-        await this.displayGameRecap("End of Game | Performance");
+        await this.displayGameRecap(`End of Game #${this.day} | Performance`);
 
         this.stop();
     }
@@ -589,7 +589,8 @@ export class Game {
         const embed = new EmbedBuilder()
             .setColor(accentEmbedColor)
             .setTitle(title)
-            .setFields(fields);
+            .setFields(fields)
+            .setTimestamp();
 
         await this.interaction.followUp({
             embeds: [embed],
